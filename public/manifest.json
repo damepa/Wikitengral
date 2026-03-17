@@ -1,0 +1,16 @@
+{
+  "name": "WikiTegral",
+  "short_name": "WikiTegral",
+  "description": "Aplicación de gestión documental y edificios",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ecf0f1",
+  "theme_color": "#2c3e50",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
