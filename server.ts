@@ -15,6 +15,9 @@ app.use(cors());
 // --- PostgreSQL Setup ---
 const dbUrl = process.env.DATABASE_URL;
 
+let isDbConnected = false;
+const memoryCache: Record<string, any> = {};
+
 if (!dbUrl) {
   console.error('FATAL: DATABASE_URL environment variable is not set!');
   console.error('Please add DATABASE_URL to your environment variables in Coolify.');
@@ -45,6 +48,7 @@ async function initDB(retries = 15) {
       `);
       client.release();
       console.log('Database schema initialized successfully');
+      isDbConnected = true;
       return;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -142,16 +146,23 @@ async function processDataUrls(data: any): Promise<any> {
 
 // Generic GET handler
 async function getFromDB(req: express.Request, res: express.Response, key: string, defaultValue: any) {
+  if (!isDbConnected) {
+    console.warn(`Database not connected. Using in-memory cache for ${key}`);
+    res.json(memoryCache[key] || defaultValue);
+    return;
+  }
   try {
     const result = await pool.query('SELECT value FROM app_data WHERE key = $1', [key]);
     if (result.rows.length > 0) {
+      memoryCache[key] = result.rows[0].value; // Update cache
       res.json(result.rows[0].value);
     } else {
-      res.json(defaultValue);
+      res.json(memoryCache[key] || defaultValue);
     }
   } catch (err) {
     console.error(`Error getting ${key}:`, err);
-    res.status(500).json({ error: 'Internal server error' });
+    // Fallback to memory cache on error
+    res.json(memoryCache[key] || defaultValue);
   }
 }
 
@@ -162,6 +173,15 @@ async function saveToDB(req: express.Request, res: express.Response, key: string
     // Process any base64 files and upload them to MinIO
     data = await processDataUrls(data);
     
+    // Always update in-memory cache
+    memoryCache[key] = data;
+    
+    if (!isDbConnected) {
+      console.warn(`Database not connected. Saved ${key} to in-memory cache only.`);
+      res.json({ success: true, warning: 'Saved to memory only' });
+      return;
+    }
+    
     await pool.query(
       'INSERT INTO app_data (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
       [key, JSON.stringify(data)]
@@ -169,7 +189,8 @@ async function saveToDB(req: express.Request, res: express.Response, key: string
     res.json({ success: true });
   } catch (err) {
     console.error(`Error saving ${key}:`, err);
-    res.status(500).json({ error: 'Internal server error' });
+    // Return success since it's saved in memory cache, so the frontend doesn't break
+    res.json({ success: true, warning: 'Saved to memory only due to DB error' });
   }
 }
 

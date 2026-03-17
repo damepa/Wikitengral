@@ -796,6 +796,16 @@
       <div class="header-top">
         <h1 onclick="goHome()">WikiTegral</h1>
         <div style="display: flex; gap: 10px;">
+          <!-- Botón de Instalar PWA -->
+          <button
+            id="install-pwa-btn"
+            class="action-btn hidden-el"
+            style="background-color: #27ae60; padding: 8px 12px; flex: 0 1 auto; font-size: 0.9rem;"
+            onclick="installPWA()"
+            title="Instalar Aplicación"
+          >
+            📱 Instalar
+          </button>
           <!-- Botón de Modo Oscuro -->
           <button
             class="action-btn"
@@ -5138,6 +5148,43 @@
         }
         closeGlobalImportModal();
       }
+
+      // --- PWA INSTALL LOGIC ---
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent the mini-infobar from appearing on mobile
+        e.preventDefault();
+        // Stash the event so it can be triggered later.
+        deferredPrompt = e;
+        // Update UI notify the user they can install the PWA
+        const installBtn = document.getElementById('install-pwa-btn');
+        if (installBtn) {
+          installBtn.classList.remove('hidden-el');
+        }
+      });
+
+      window.installPWA = async function() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          deferredPrompt = null;
+          const installBtn = document.getElementById('install-pwa-btn');
+          if (installBtn) {
+            installBtn.classList.add('hidden-el');
+          }
+        } else {
+          alert("La aplicación ya está instalada o tu navegador no soporta esta función en este momento.");
+        }
+      };
+
+      window.addEventListener('appinstalled', () => {
+        console.log('PWA was installed');
+        const installBtn = document.getElementById('install-pwa-btn');
+        if (installBtn) {
+          installBtn.classList.add('hidden-el');
+        }
+      });
     </script>
 
   </body>
