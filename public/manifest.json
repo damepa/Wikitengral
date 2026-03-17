@@ -1,33 +1,40 @@
 {
-  "id": "/",
+  "id": "wikitegral-pwa",
   "name": "WikiTegral",
   "short_name": "WikiTegral",
-  "description": "Gestión Documental y Edificios WikiTegral",
-  "start_url": "/?source=pwa",
-  "scope": "/",
+  "description": "Gestión Documental WikiTegral",
+  "start_url": "/",
   "display": "standalone",
-  "orientation": "any",
   "background_color": "#2c3e50",
   "theme_color": "#2c3e50",
-  "categories": ["business", "productivity"],
+  "orientation": "any",
+  "scope": "/",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
-      "sizes": "any",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    },
-    {
-      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH5gMREhAWp/8zVAAAAD1JREFUeNrtwTEBAAAAwqD1T20Hb6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAbnEAAAayS89EAAAAASUVORK5CYII=",
+      "src": "https://raw.githubusercontent.com/pwa-builder/pwa-builder-test-icons/master/192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/pwa-builder/pwa-builder-test-icons/master/512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Documentos",
+      "url": "/#view-docs",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
     }
   ]
 }
