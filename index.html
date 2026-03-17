@@ -19,7 +19,7 @@
 
 
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/pwa-builder/pwa-builder-test-icons/master/192x192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <meta name="theme-color" content="#2C3E50" />
     <meta name="mobile-web-app-capable" content="yes">
@@ -52,7 +52,7 @@
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/sw.js?v=4").then(
+          navigator.serviceWorker.register("/sw.js?v=5").then(
             (registration) => {
               console.log(
                 "ServiceWorker registration successful with scope: ",
