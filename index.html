@@ -3519,12 +3519,32 @@
             
             const container = document.getElementById("pdf-container");
 
-            // Renderizar páginas una a una con manejo de errores por página
-            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            // IntersectionObserver para carga perezosa de páginas
+            const observerOptions = {
+              root: document.querySelector('#document-viewer-modal .modal-content'),
+              rootMargin: '500px', // Cargar páginas antes de que lleguen a verse
+              threshold: 0
+            };
+
+            const pageObserver = new IntersectionObserver((entries, observer) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  const pageDiv = entry.target;
+                  const pageNum = parseInt(pageDiv.dataset.pageNum);
+                  if (!pageDiv.dataset.rendered) {
+                    renderPage(pdf, pageNum, pageDiv);
+                    pageDiv.dataset.rendered = "true";
+                    observer.unobserve(pageDiv);
+                  }
+                }
+              });
+            }, observerOptions);
+
+            async function renderPage(pdfDoc, pageNum, pageDiv) {
               try {
-                const page = await pdf.getPage(pageNum);
-                // Ajustar escala según el ancho del contenedor si es posible, o usar 1.2 por defecto
-                const viewport = page.getViewport({ scale: 1.2 });
+                const page = await pdfDoc.getPage(pageNum);
+                const scale = 1.5; // Escala fija para mejor calidad
+                const viewport = page.getViewport({ scale });
 
                 const canvas = document.createElement("canvas");
                 const context = canvas.getContext("2d");
@@ -3532,24 +3552,40 @@
                 canvas.width = viewport.width;
                 canvas.style.maxWidth = "100%";
                 canvas.style.height = "auto";
-                canvas.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
-                canvas.style.marginBottom = "15px";
+                canvas.style.display = "block";
                 canvas.style.backgroundColor = "white";
 
                 const renderContext = {
                   canvasContext: context,
                   viewport: viewport,
                 };
+                
+                pageDiv.innerHTML = ""; // Quitar el placeholder
+                pageDiv.appendChild(canvas);
                 await page.render(renderContext).promise;
-                container.appendChild(canvas);
-              } catch (pageError) {
-                console.error(`Error rendering page ${pageNum}:`, pageError);
-                const errorDiv = document.createElement("div");
-                errorDiv.style.padding = "10px";
-                errorDiv.style.color = "red";
-                errorDiv.innerText = `Error al cargar la página ${pageNum}`;
-                container.appendChild(errorDiv);
+              } catch (err) {
+                console.error(`Error rendering page ${pageNum}:`, err);
+                pageDiv.innerHTML = `<div style="padding:20px; color:red;">Error al cargar la página ${pageNum}</div>`;
               }
+            }
+
+            // Crear placeholders para todas las páginas
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+              const pageDiv = document.createElement("div");
+              pageDiv.className = "pdf-page-wrapper";
+              pageDiv.dataset.pageNum = pageNum;
+              pageDiv.style.width = "100%";
+              pageDiv.style.minHeight = "800px"; // Altura estimada inicial
+              pageDiv.style.marginBottom = "20px";
+              pageDiv.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
+              pageDiv.style.backgroundColor = "#eee";
+              pageDiv.style.display = "flex";
+              pageDiv.style.alignItems = "center";
+              pageDiv.style.justifyContent = "center";
+              pageDiv.innerHTML = `<div style="color:#666;">Cargando página ${pageNum}...</div>`;
+              
+              container.appendChild(pageDiv);
+              pageObserver.observe(pageDiv);
             }
           } catch (error) {
             console.error("Error rendering PDF with PDF.js:", error);
