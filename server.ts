@@ -19,20 +19,23 @@ let isDbConnected = false;
 const memoryCache: Record<string, any> = {};
 
 if (!dbUrl) {
-  console.error('FATAL: DATABASE_URL environment variable is not set!');
-  console.error('Please add DATABASE_URL to your environment variables in Coolify.');
-  process.exit(1);
+  console.warn('WARNING: DATABASE_URL environment variable is not set!');
+  console.warn('The application will run in memory-only mode. Data will be lost on restart.');
+} else {
+  // Log the DB URL (masking password) for debugging
+  const maskedUrl = dbUrl.replace(/:([^:@]+)@/, ':****@');
+  console.log(`Attempting to connect to database: ${maskedUrl}`);
 }
 
-// Log the DB URL (masking password) for debugging
-const maskedUrl = dbUrl.replace(/:([^:@]+)@/, ':****@');
-console.log(`Attempting to connect to database: ${maskedUrl}`);
-
-const pool = new Pool({
-  connectionString: dbUrl,
-});
+let pool: Pool | null = null;
+if (dbUrl) {
+  pool = new Pool({
+    connectionString: dbUrl,
+  });
+}
 
 async function initDB(retries = 15) {
+  if (!pool) return;
   while (retries > 0) {
     try {
       // Test connection first
@@ -86,6 +89,24 @@ const minioClient = new Minio.Client({
   secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
 });
 
+// External MinIO client for generating presigned URLs that the browser can reach
+const externalEndpoint = process.env.MINIO_EXTERNAL_URL || '';
+let externalMinioClient = minioClient;
+
+if (externalEndpoint) {
+  const cleanExternal = externalEndpoint.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const isSSL = externalEndpoint.startsWith('https://');
+  
+  externalMinioClient = new Minio.Client({
+    endPoint: cleanExternal,
+    // If port is not in the URL, use default 80/443 or 9000
+    port: externalEndpoint.includes(':') ? parseInt(externalEndpoint.split(':').pop()!) : (isSSL ? 443 : 80),
+    useSSL: isSSL,
+    accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+    secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+  });
+}
+
 const bucketName = process.env.MINIO_BUCKET || 'wikitegral';
 
 async function initMinio() {
@@ -113,23 +134,31 @@ async function processDataUrls(data: any): Promise<any> {
     for (const key in data) {
       if (key === 'dataUrl' && typeof data[key] === 'string' && data[key].startsWith('data:')) {
         try {
-          const matches = data[key].match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-          if (matches && matches.length === 3) {
-            const mimeType = matches[1];
-            const base64Data = matches[2];
-            const buffer = Buffer.from(base64Data, 'base64');
+          const dataUrl = data[key];
+          const commaIndex = dataUrl.indexOf(',');
+          if (commaIndex !== -1) {
+            const header = dataUrl.substring(0, commaIndex);
+            const mimeMatch = header.match(/data:([^;]+);base64/);
             
-            // Generate a unique filename
-            const ext = mimeType.split('/')[1] || 'bin';
-            const filename = `${crypto.randomUUID()}.${ext}`;
-            
-            // Upload to MinIO
-            await minioClient.putObject(bucketName, filename, buffer, buffer.length, {
-              'Content-Type': mimeType
-            });
-            
-            // Replace dataUrl with the API endpoint to fetch the file
-            data[key] = `/api/files/${filename}`;
+            if (mimeMatch) {
+              const mimeType = mimeMatch[1];
+              // Use a buffer directly from the base64 part of the string
+              // This is more memory efficient than regex match
+              const base64Data = dataUrl.substring(commaIndex + 1);
+              const buffer = Buffer.from(base64Data, 'base64');
+              
+              // Generate a unique filename
+              const ext = mimeType.split('/')[1] || 'bin';
+              const filename = `${crypto.randomUUID()}.${ext}`;
+              
+              // Upload to MinIO
+              await minioClient.putObject(bucketName, filename, buffer, buffer.length, {
+                'Content-Type': mimeType
+              });
+              
+              // Replace dataUrl with the API endpoint to fetch the file
+              data[key] = `/api/files/${filename}`;
+            }
           }
         } catch (err) {
           console.error('Error processing base64 dataUrl:', err);
@@ -186,7 +215,7 @@ async function saveToDB(req: express.Request, res: express.Response, key: string
       'INSERT INTO app_data (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
       [key, JSON.stringify(data)]
     );
-    res.json({ success: true });
+    res.json({ success: true, data });
   } catch (err) {
     console.error(`Error saving ${key}:`, err);
     // Return success since it's saved in memory cache, so the frontend doesn't break
@@ -203,19 +232,35 @@ app.post('/api/buildings/sync', (req, res) => saveToDB(req, res, 'wikiTegralEdif
 app.get('/api/security', (req, res) => getFromDB(req, res, 'wikiTegralSecurity', { pinEnabled: false, pin: '', dni: '' }));
 app.post('/api/security', (req, res) => saveToDB(req, res, 'wikiTegralSecurity'));
 
-// File serving endpoint
+app.get('/api/equipos', (req, res) => getFromDB(req, res, 'wikiTegralEquipos', []));
+app.post('/api/equipos/sync', (req, res) => saveToDB(req, res, 'wikiTegralEquipos'));
+
+// File serving endpoint optimized with Presigned URLs
 app.get('/api/files/:filename', async (req, res) => {
   try {
     const filename = req.params.filename;
-    const stat = await minioClient.statObject(bucketName, filename);
-    res.setHeader('Content-Type', stat.metaData['content-type'] || 'application/octet-stream');
-    res.setHeader('Content-Length', stat.size);
     
-    const stream = await minioClient.getObject(bucketName, filename);
-    stream.pipe(res);
+    // Generate a presigned URL for direct download from MinIO
+    // This offloads the data transfer from the app server to MinIO
+    // Expires in 1 hour (3600 seconds)
+    const presignedUrl = await externalMinioClient.presignedGetObject(bucketName, filename, 3600);
+    
+    // Redirect the client to the direct MinIO URL
+    res.redirect(presignedUrl);
   } catch (err) {
-    console.error('Error serving file:', err);
-    res.status(404).json({ error: 'File not found' });
+    console.error('Error generating presigned URL:', err);
+    
+    // Fallback to streaming if presigned URL fails
+    try {
+      const filename = req.params.filename;
+      const stream = await minioClient.getObject(bucketName, filename);
+      const stat = await minioClient.statObject(bucketName, filename);
+      res.setHeader('Content-Type', stat.metaData['content-type'] || 'application/octet-stream');
+      stream.pipe(res);
+    } catch (fallbackErr) {
+      console.error('Fallback error serving file:', fallbackErr);
+      res.status(404).json({ error: 'File not found' });
+    }
   }
 });
 

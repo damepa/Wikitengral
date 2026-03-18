@@ -16,6 +16,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <!-- Lector de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+      // Configuración global de PDF.js
+      if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+      }
+    </script>
 
 
     <link rel="manifest" href="/manifest.json" />
@@ -791,10 +797,6 @@
         margin-top: 20px;
       }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-    </script>
   </head>
   <body>
     <header id="main-header">
@@ -893,6 +895,7 @@
             <div style="padding: 8px 16px; font-size: 0.85rem; color: #7f8c8d; font-weight: bold; background: #f9f9f9; border-bottom: 1px solid #eee; border-top: 1px solid #eee;">Otros</div>
             <button onclick="openEdificios(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">🏢 Edificios</button>
             <button onclick="openWifisGlobal(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">📶 Wifis</button>
+            <button onclick="openEquipos(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">🖥️ Equipos</button>
             <button onclick="openCategory('Trucos', 'Trucos'); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">💡 Trucos</button>
           </div>
         </div>
@@ -1227,14 +1230,59 @@
               <p style="margin-top: 0; color: #666;">Generado el: <span id="stat-pdf-date"></span></p>
           </div>
 
-          <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-            <div class="menu-card sub-card" style="flex: 1; min-width: 200px; border: 1px solid #eee;">
+          <style>
+            .stat-cards-container {
+              display: flex;
+              gap: 20px;
+              flex-wrap: wrap;
+              margin-bottom: 20px;
+            }
+            .stat-card {
+              flex: 1;
+              min-width: 200px;
+              border: 1px solid #eee;
+              text-align: center;
+              padding: 1rem;
+              background: var(--bg);
+              border-bottom: 3px solid var(--primary);
+            }
+            @media (max-width: 600px) {
+              .stat-cards-container {
+                flex-direction: column;
+                gap: 10px;
+              }
+              .stat-card {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                min-width: 100%;
+                padding: 10px 15px;
+                border-bottom: 1px solid #eee;
+                border-left: 3px solid var(--primary);
+              }
+              .stat-card h3 {
+                font-size: 1.5rem !important;
+                order: 2;
+              }
+              .stat-card p {
+                margin: 0 !important;
+                order: 1;
+                font-weight: bold;
+              }
+            }
+          </style>
+          <div class="stat-cards-container">
+            <div class="stat-card">
               <h3 style="margin:0; font-size: 2rem; color: #3498db;" id="stat-total-files">0</h3>
               <p style="margin: 5px 0 0 0;">Total de Archivos</p>
             </div>
-            <div class="menu-card sub-card" style="flex: 1; min-width: 200px; border: 1px solid #eee;">
+            <div class="stat-card">
               <h3 style="margin:0; font-size: 2rem; color: #e74c3c;" id="stat-total-size">0 KB</h3>
               <p style="margin: 5px 0 0 0;">Tamaño Total</p>
+            </div>
+            <div class="stat-card">
+              <h3 style="margin:0; font-size: 2rem; color: #27ae60;" id="stat-total-equipos">0</h3>
+              <p style="margin: 5px 0 0 0;">Total de Equipos</p>
             </div>
           </div>
 
@@ -1294,6 +1342,85 @@
             </thead>
             <tbody id="wifis-global-table-body"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- PANTALLA EQUIPOS -->
+      <div id="view-equipos" class="view">
+        <h2>Listado de Equipos</h2>
+        <div class="action-bar" style="flex-wrap: wrap">
+          <button class="action-btn home" onclick="goHome()">🏠 Menú Principal</button>
+          <button class="action-btn" onclick="abrirModalCrearEquipo()">➕ Crear</button>
+          <button class="action-btn" style="background-color: #217346" onclick="document.getElementById('import-equipos-upload').click()">📥 Importar</button>
+          <input type="file" id="import-equipos-upload" class="hidden-input" accept=".json" onchange="importarEquipos(event)" />
+          <button class="action-btn" style="background-color: #2b579a" onclick="exportarEquipos()">📤 Exportar</button>
+          <button class="action-btn" style="background-color: #e74c3c" onclick="generarListadoEquiposPDF()">📄 Listado PDF</button>
+          <button class="action-btn" style="background-color: #217346" onclick="generarListadoEquiposExcel()">📊 Listado Excel</button>
+          <input type="text" id="buscador-equipos" class="form-control" placeholder="Buscar equipo..." style="flex: 1; min-width: 200px;" oninput="filtrarEquipos()" />
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Edificio</th>
+                <th>Rack</th>
+                <th>Equipo</th>
+                <th>CI</th>
+                <th>Nº de U</th>
+                <th>S/N</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="equipos-table-body"></tbody>
+          </table>
+        </div>
+        
+        <!-- Contenedor Oculto para Generación PDF de Equipos -->
+        <div id="equipos-pdf-export" style="display: none; background: white; padding: 20px; border-radius: 8px; color: #333;">
+            <div style="text-align: center; margin-bottom: 20px; color: #2c3e50;">
+                <h2 style="margin-bottom: 5px;">Listado de Equipos - WikiTegral</h2>
+                <p style="margin-top: 0; color: #666;">Generado el: <span id="equipos-pdf-date"></span></p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <thead>
+                <tr>
+                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Edificio</th>
+                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Rack</th>
+                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Equipo</th>
+                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">CI</th>
+                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Nº de U</th>
+                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">S/N</th>
+                </tr>
+              </thead>
+              <tbody id="equipos-pdf-body"></tbody>
+            </table>
+        </div>
+      </div>
+
+      <!-- MODAL CREAR/EDITAR EQUIPO -->
+      <div id="modal-equipo-form" class="modal-overlay hidden" style="z-index: 5000">
+        <div class="modal-content" style="max-width: 500px; padding: 20px; height: auto; max-height: 90vh; overflow-y: auto;">
+          <h3 id="equipo-modal-title">Crear Equipo</h3>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+            <select id="equipo-edificio" class="form-control">
+              <option value="">Selecciona un Edificio</option>
+              <option value="Múltiples III">Múltiples III</option>
+              <option value="Múltiples II">Múltiples II</option>
+              <option value="Múltiples I">Múltiples I</option>
+            </select>
+            <input type="text" id="equipo-rack" class="form-control" placeholder="Nombre del Rack" />
+            <input type="text" id="equipo-nombre" class="form-control" placeholder="Nombre del equipo" />
+            <input type="text" id="equipo-ci" class="form-control" placeholder="CI" />
+            <select id="equipo-u" class="form-control">
+              <option value="">Selecciona Nº de U</option>
+            </select>
+            <input type="text" id="equipo-sn" class="form-control" placeholder="S/N (Serial Number)" />
+            <input type="hidden" id="equipo-id" />
+          </div>
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <button class="action-btn danger" onclick="cerrarModalEquipo()">Cancelar</button>
+            <button class="action-btn" onclick="guardarEquipo()">Guardar</button>
+          </div>
         </div>
       </div>
 
@@ -2369,6 +2496,7 @@
       let dbDocs = {};
       window.getDbDocs = function() { return dbDocs; };
       let dbEdificios = [];
+      let dbEquipos = [];
       let dbSecurity = {
         pinEnabled: false,
         pin: "",
@@ -2385,6 +2513,7 @@
           if (key === "wikiTegralDocs") url = "/api/docs";
           else if (key === "wikiTegralEdificios") url = "/api/buildings";
           else if (key === "wikiTegralSecurity") url = "/api/security";
+          else if (key === "wikiTegralEquipos") url = "/api/equipos";
           
           const response = await fetch(url);
           if (!response.ok) throw new Error("Network response was not ok");
@@ -2401,6 +2530,7 @@
           if (key === "wikiTegralDocs") url = "/api/docs/sync";
           else if (key === "wikiTegralEdificios") url = "/api/buildings/sync";
           else if (key === "wikiTegralSecurity") url = "/api/security";
+          else if (key === "wikiTegralEquipos") url = "/api/equipos/sync";
 
           const response = await fetch(url, {
             method: "POST",
@@ -2417,23 +2547,33 @@
       async function loadAppData() {
         let docs = await getFromDB("wikiTegralDocs");
         let edificios = await getFromDB("wikiTegralEdificios");
+        let equipos = await getFromDB("wikiTegralEquipos");
         let security = await getFromDB("wikiTegralSecurity");
 
-        if ((!docs || Object.keys(docs).length === 0) && localStorage.getItem("wikiTegralDocs")) {
-          docs = JSON.parse(localStorage.getItem("wikiTegralDocs"));
-          await saveToDB("wikiTegralDocs", docs);
-        }
-        if ((!edificios || edificios.length === 0) && localStorage.getItem("wikiTegralEdificios")) {
-          edificios = JSON.parse(localStorage.getItem("wikiTegralEdificios"));
-          await saveToDB("wikiTegralEdificios", edificios);
-        }
-        if ((!security || !security.pinEnabled) && localStorage.getItem("wikiTegralSecurity")) {
-          security = JSON.parse(localStorage.getItem("wikiTegralSecurity"));
-          await saveToDB("wikiTegralSecurity", security);
+        try {
+          if ((!docs || Object.keys(docs).length === 0) && localStorage.getItem("wikiTegralDocs")) {
+            docs = JSON.parse(localStorage.getItem("wikiTegralDocs"));
+            await saveToDB("wikiTegralDocs", docs);
+          }
+          if ((!edificios || edificios.length === 0) && localStorage.getItem("wikiTegralEdificios")) {
+            edificios = JSON.parse(localStorage.getItem("wikiTegralEdificios"));
+            await saveToDB("wikiTegralEdificios", edificios);
+          }
+          if ((!equipos || equipos.length === 0) && localStorage.getItem("wikiTegralEquipos")) {
+            equipos = JSON.parse(localStorage.getItem("wikiTegralEquipos"));
+            await saveToDB("wikiTegralEquipos", equipos);
+          }
+          if ((!security || !security.pinEnabled) && localStorage.getItem("wikiTegralSecurity")) {
+            security = JSON.parse(localStorage.getItem("wikiTegralSecurity"));
+            await saveToDB("wikiTegralSecurity", security);
+          }
+        } catch (e) {
+          console.warn("localStorage access denied or failed, skipping local migration:", e);
         }
 
         if (docs) dbDocs = docs;
         if (edificios) dbEdificios = edificios;
+        if (equipos) dbEquipos = equipos;
         if (security) dbSecurity = security;
 
         let keysToDelete = Object.keys(dbDocs).filter((k) =>
@@ -2514,7 +2654,7 @@
         showView("view-security");
       }
 
-      function saveSecuritySettings() {
+      async function saveSecuritySettings() {
         const enabled = document.getElementById("security-pin-toggle").checked;
         const pin = document.getElementById("security-pin-value").value.trim();
         const dni = document.getElementById("security-dni-value").value.trim();
@@ -2532,7 +2672,10 @@
           pin: pin,
           dni: dni,
         };
-        saveToDB("wikiTegralSecurity", dbSecurity);
+        const response = await saveToDB("wikiTegralSecurity", dbSecurity);
+        if (response && response.success && response.data) {
+          dbSecurity = response.data;
+        }
 
         goHome();
         showCustomModal({
@@ -2615,7 +2758,7 @@
 
       async function exportBackup() {
         const data = JSON.stringify(
-          { docs: dbDocs, edificios: dbEdificios, security: dbSecurity },
+          { docs: dbDocs, edificios: dbEdificios, equipos: dbEquipos, security: dbSecurity },
           null,
           2,
         );
@@ -2655,7 +2798,7 @@
         reader.onload = async (ev) => {
           try {
             const backup = JSON.parse(ev.target.result);
-            if (!backup.docs && !backup.edificios) {
+            if (!backup.docs && !backup.edificios && !backup.equipos) {
               throw new Error("Formato inválido");
             }
 
@@ -2675,10 +2818,12 @@
               closeModal();
               dbDocs = backup.docs || {};
               dbEdificios = backup.edificios || [];
+              dbEquipos = backup.equipos || [];
               dbSecurity = backup.security || dbSecurity;
               
               await saveToDB("wikiTegralDocs", dbDocs);
               await saveToDB("wikiTegralEdificios", dbEdificios);
+              await saveToDB("wikiTegralEquipos", dbEquipos);
               await saveToDB("wikiTegralSecurity", dbSecurity);
               
               showCustomModal({
@@ -2714,10 +2859,20 @@
                 }
               });
 
+              // Fusionar dbEquipos
+              const importedEquipos = backup.equipos || [];
+              importedEquipos.forEach(importedEq => {
+                const exists = dbEquipos.some(e => e.sn === importedEq.sn && e.nombre === importedEq.nombre);
+                if (!exists) {
+                  dbEquipos.push(importedEq);
+                }
+              });
+
               // Security settings we don't merge, we keep current or overwrite? Let's keep current on merge.
               
               await saveToDB("wikiTegralDocs", dbDocs);
               await saveToDB("wikiTegralEdificios", dbEdificios);
+              await saveToDB("wikiTegralEquipos", dbEquipos);
               
               showCustomModal({
                 message: "Datos fusionados correctamente.",
@@ -2784,6 +2939,7 @@
 
         document.getElementById('stat-total-files').innerText = totalFiles;
         document.getElementById('stat-total-size').innerText = formatBytes(totalSizeBytes);
+        document.getElementById('stat-total-equipos').innerText = dbEquipos.length;
 
         const typeBody = document.getElementById('stat-type-body');
         if (Object.keys(typeStats).length === 0) {
@@ -3247,8 +3403,12 @@
         });
       }
 
-      function saveDocs() {
-        saveToDB("wikiTegralDocs", dbDocs);
+      async function saveDocs() {
+        const response = await saveToDB("wikiTegralDocs", dbDocs);
+        if (response && response.success && response.data) {
+          dbDocs = response.data;
+          renderDocs();
+        }
       }
 
       // --- EDITOR ---
@@ -3323,45 +3483,99 @@
 
         if (ext === "pdf") {
           htmlDiv.innerHTML =
-            '<div id="pdf-container" style="display:flex; flex-direction:column; align-items:center; gap:10px;"></div>';
+            '<div id="pdf-loading" style="text-align:center; padding:20px;">Cargando PDF...</div>' +
+            '<div id="pdf-container" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding: 10px;"></div>';
           htmlDiv.classList.remove("hidden-el");
 
           try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc =
-              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-            const loadingTask = pdfjsLib.getDocument(doc.dataUrl);
+            if (typeof pdfjsLib === 'undefined') {
+              throw new Error("La librería PDF.js no está cargada.");
+            }
+
+            let pdfData;
+            if (doc.dataUrl.startsWith('data:application/pdf;base64,')) {
+              try {
+                const base64 = doc.dataUrl.split(",")[1];
+                const binary_string = window.atob(base64);
+                const len = binary_string.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                  bytes[i] = binary_string.charCodeAt(i);
+                }
+                pdfData = { data: bytes };
+              } catch (b64Err) {
+                console.error("Error decodificando base64:", b64Err);
+                throw new Error("El archivo PDF está corrupto o no es válido.");
+              }
+            } else {
+              pdfData = { url: doc.dataUrl };
+            }
+
+            const loadingTask = pdfjsLib.getDocument(pdfData);
             const pdf = await loadingTask.promise;
+            
+            const loadingMsg = document.getElementById("pdf-loading");
+            if (loadingMsg) loadingMsg.style.display = "none";
+            
             const container = document.getElementById("pdf-container");
 
+            // Renderizar páginas una a una con manejo de errores por página
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-              const page = await pdf.getPage(pageNum);
-              const scale = 1.5;
-              const viewport = page.getViewport({ scale: scale });
+              try {
+                const page = await pdf.getPage(pageNum);
+                // Ajustar escala según el ancho del contenedor si es posible, o usar 1.2 por defecto
+                const viewport = page.getViewport({ scale: 1.2 });
 
-              const canvas = document.createElement("canvas");
-              const context = canvas.getContext("2d");
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-              canvas.style.maxWidth = "100%";
-              canvas.style.height = "auto";
-              canvas.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
-              canvas.style.marginBottom = "10px";
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                canvas.style.maxWidth = "100%";
+                canvas.style.height = "auto";
+                canvas.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
+                canvas.style.marginBottom = "15px";
+                canvas.style.backgroundColor = "white";
 
-              const renderContext = {
-                canvasContext: context,
-                viewport: viewport,
-              };
-              await page.render(renderContext).promise;
-              container.appendChild(canvas);
+                const renderContext = {
+                  canvasContext: context,
+                  viewport: viewport,
+                };
+                await page.render(renderContext).promise;
+                container.appendChild(canvas);
+              } catch (pageError) {
+                console.error(`Error rendering page ${pageNum}:`, pageError);
+                const errorDiv = document.createElement("div");
+                errorDiv.style.padding = "10px";
+                errorDiv.style.color = "red";
+                errorDiv.innerText = `Error al cargar la página ${pageNum}`;
+                container.appendChild(errorDiv);
+              }
             }
           } catch (error) {
-            console.error("Error rendering PDF:", error);
-            const res = await fetch(doc.dataUrl);
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            frame.src = blobUrl;
-            frame.classList.remove("hidden-el");
-            htmlDiv.classList.add("hidden-el");
+            console.error("Error rendering PDF with PDF.js:", error);
+            // Fallback to iframe
+            try {
+              // Si es un dataUrl, lo convertimos a blob para que el iframe lo maneje mejor
+              let blobUrl = doc.dataUrl;
+              if (doc.dataUrl.startsWith('data:')) {
+                const res = await fetch(doc.dataUrl);
+                const blob = await res.blob();
+                blobUrl = URL.createObjectURL(blob);
+              }
+              
+              frame.src = blobUrl;
+              frame.classList.remove("hidden-el");
+              htmlDiv.classList.add("hidden-el");
+            } catch (fallbackError) {
+              console.error("Fallback PDF error:", fallbackError);
+              htmlDiv.innerHTML = `
+                <div style="padding:40px; text-align:center;">
+                  <p>No se pudo previsualizar el PDF directamente.</p>
+                  <a href="${doc.dataUrl}" download="${doc.name}" class="action-btn" style="display:inline-block; margin-top:10px; text-decoration:none;">
+                    📥 Descargar para ver
+                  </a>
+                </div>`;
+            }
           }
         } else if (["jpg", "jpeg", "png", "gif"].includes(ext)) {
           htmlDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%;"><img src="${doc.dataUrl}" style="max-width:100%; max-height:calc(100vh - 140px); object-fit:contain; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>`;
@@ -3647,6 +3861,236 @@
             console.error("Download error:", err);
           }
         }
+      }
+
+      // --- EQUIPOS ---
+      function openEquipos() {
+        renderEquiposTable();
+        showView("view-equipos");
+      }
+
+      function renderEquiposTable() {
+        const tbody = document.getElementById("equipos-table-body");
+        tbody.innerHTML = "";
+        const searchTerm = document.getElementById("buscador-equipos").value.toLowerCase();
+
+        let filteredEquipos = dbEquipos;
+        if (searchTerm) {
+          filteredEquipos = dbEquipos.filter(eq => 
+            (eq.edificio && eq.edificio.toLowerCase().includes(searchTerm)) ||
+            (eq.rack && eq.rack.toLowerCase().includes(searchTerm)) ||
+            (eq.nombre && eq.nombre.toLowerCase().includes(searchTerm)) ||
+            (eq.ci && eq.ci.toLowerCase().includes(searchTerm)) ||
+            (eq.u && eq.u.toLowerCase().includes(searchTerm)) ||
+            (eq.sn && eq.sn.toLowerCase().includes(searchTerm))
+          );
+        }
+
+        if (filteredEquipos.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No hay equipos registrados.</td></tr>`;
+          return;
+        }
+
+        filteredEquipos.forEach((eq) => {
+          const originalIndex = dbEquipos.indexOf(eq);
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td data-label="Edificio">${eq.edificio || ""}</td>
+            <td data-label="Rack">${eq.rack || ""}</td>
+            <td data-label="Equipo">${eq.nombre || ""}</td>
+            <td data-label="CI">${eq.ci || ""}</td>
+            <td data-label="Nº de U">${eq.u || ""}</td>
+            <td data-label="S/N">${eq.sn || ""}</td>
+            <td data-label="Acciones">
+              <button onclick="editarEquipo(${originalIndex})" class="action-btn secondary" style="padding: 5px 10px; font-size: 1rem;" title="Editar">✏️</button>
+              <button onclick="eliminarEquipo(${originalIndex})" class="action-btn danger" style="padding: 5px 10px; font-size: 1rem;" title="Eliminar">🗑️</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      function filtrarEquipos() {
+        renderEquiposTable();
+      }
+
+      function abrirModalCrearEquipo() {
+        document.getElementById("equipo-modal-title").innerText = "Crear Equipo";
+        document.getElementById("equipo-id").value = "";
+        document.getElementById("equipo-edificio").value = "";
+        document.getElementById("equipo-rack").value = "";
+        document.getElementById("equipo-nombre").value = "";
+        document.getElementById("equipo-ci").value = "";
+        
+        // Populate U dropdown
+        const uSelect = document.getElementById("equipo-u");
+        uSelect.innerHTML = '<option value="">Selecciona Nº de U</option>';
+        for (let i = 1; i <= 42; i++) {
+          uSelect.innerHTML += `<option value="${i}">${i}</option>`;
+        }
+        uSelect.value = "";
+        
+        document.getElementById("equipo-sn").value = "";
+        document.getElementById("modal-equipo-form").classList.remove("hidden");
+      }
+
+      function editarEquipo(index) {
+        const eq = dbEquipos[index];
+        document.getElementById("equipo-modal-title").innerText = "Editar Equipo";
+        document.getElementById("equipo-id").value = index;
+        document.getElementById("equipo-edificio").value = eq.edificio || "";
+        document.getElementById("equipo-rack").value = eq.rack || "";
+        document.getElementById("equipo-nombre").value = eq.nombre || "";
+        document.getElementById("equipo-ci").value = eq.ci || "";
+        
+        const uSelect = document.getElementById("equipo-u");
+        uSelect.innerHTML = '<option value="">Selecciona Nº de U</option>';
+        for (let i = 1; i <= 42; i++) {
+          uSelect.innerHTML += `<option value="${i}">${i}</option>`;
+        }
+        uSelect.value = eq.u || "";
+        
+        document.getElementById("equipo-sn").value = eq.sn || "";
+        document.getElementById("modal-equipo-form").classList.remove("hidden");
+      }
+
+      function cerrarModalEquipo() {
+        document.getElementById("modal-equipo-form").classList.add("hidden");
+      }
+
+      async function guardarEquipo() {
+        const id = document.getElementById("equipo-id").value;
+        const eq = {
+          edificio: document.getElementById("equipo-edificio").value,
+          rack: document.getElementById("equipo-rack").value,
+          nombre: document.getElementById("equipo-nombre").value,
+          ci: document.getElementById("equipo-ci").value,
+          u: document.getElementById("equipo-u").value,
+          sn: document.getElementById("equipo-sn").value,
+        };
+
+        if (id === "") {
+          dbEquipos.push(eq);
+        } else {
+          dbEquipos[parseInt(id)] = eq;
+        }
+
+        await saveToDB("wikiTegralEquipos", dbEquipos);
+        cerrarModalEquipo();
+        renderEquiposTable();
+      }
+
+      async function eliminarEquipo(index) {
+        if (confirm("¿Estás seguro de eliminar este equipo?")) {
+          dbEquipos.splice(index, 1);
+          await saveToDB("wikiTegralEquipos", dbEquipos);
+          renderEquiposTable();
+        }
+      }
+
+      async function importarEquipos(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (Array.isArray(data)) {
+              if (confirm("¿Deseas sobrescribir los equipos actuales? (Aceptar = Sobrescribir, Cancelar = Añadir)")) {
+                dbEquipos = data;
+              } else {
+                dbEquipos = dbEquipos.concat(data);
+              }
+              await saveToDB("wikiTegralEquipos", dbEquipos);
+              renderEquiposTable();
+              alert("Equipos importados correctamente.");
+            } else {
+              alert("El archivo JSON no tiene el formato correcto.");
+            }
+          } catch (error) {
+            alert("Error al leer el archivo JSON.");
+          }
+        };
+        reader.readAsText(file);
+        event.target.value = ""; // Reset input
+      }
+
+      function exportarEquipos() {
+        const dataStr = JSON.stringify(dbEquipos, null, 2);
+        const today = new Date();
+        const dateStr = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()} ${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`;
+        const fileName = `G.Equipos ${dateStr}.json`;
+
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      function generarListadoEquiposPDF() {
+        const tbody = document.getElementById("equipos-pdf-body");
+        tbody.innerHTML = "";
+        
+        dbEquipos.forEach((eq) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td style="padding: 8px; border: 1px solid #ccc;">${eq.edificio || ""}</td>
+            <td style="padding: 8px; border: 1px solid #ccc;">${eq.rack || ""}</td>
+            <td style="padding: 8px; border: 1px solid #ccc;">${eq.nombre || ""}</td>
+            <td style="padding: 8px; border: 1px solid #ccc;">${eq.ci || ""}</td>
+            <td style="padding: 8px; border: 1px solid #ccc;">${eq.u || ""}</td>
+            <td style="padding: 8px; border: 1px solid #ccc;">${eq.sn || ""}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        const today = new Date();
+        document.getElementById("equipos-pdf-date").innerText = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()} ${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`;
+
+        const element = document.getElementById("equipos-pdf-export");
+        element.style.display = "block";
+
+        const opt = {
+          margin: 10,
+          filename: `Listado_Equipos_${today.getTime()}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+          element.style.display = "none";
+        });
+      }
+
+      function generarListadoEquiposExcel() {
+        if (!window.XLSX) {
+          showCustomModal({ message: "La librería de Excel no está cargada." });
+          return;
+        }
+        
+        const data = dbEquipos.map(eq => ({
+          "Edificio": eq.edificio || "",
+          "Rack": eq.rack || "",
+          "Equipo": eq.nombre || "",
+          "CI": eq.ci || "",
+          "Nº de U": eq.u || "",
+          "S/N": eq.sn || ""
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Equipos");
+
+        const today = new Date();
+        const dateStr = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()}`;
+        XLSX.writeFile(wb, `Listado_Equipos_${dateStr}.xlsx`);
       }
 
       // --- EDIFICIOS ---
