@@ -1496,6 +1496,53 @@
         </div>
       </div>
 
+      <!-- PANTALLA FICHA WIFI -->
+      <div id="view-wifi-ver" class="view">
+        <h2>Ficha de Wifi</h2>
+        <div class="action-bar">
+          <button
+            class="action-btn"
+            style="background-color: #95a5a6"
+            onclick="volverDeFichaWifi()"
+          >
+            ⬅️ Volver
+          </button>
+        </div>
+        <div class="editor-container" style="background: white; padding: 25px">
+          <h3
+            id="ver-wifi-nombre"
+            style="
+              border-bottom: 2px solid var(--secondary);
+              padding-bottom: 10px;
+            "
+          ></h3>
+          <p><strong>🏢 Edificio:</strong> <span id="ver-wifi-edificio"></span></p>
+          <p><strong>🏢 Planta:</strong> <span id="ver-wifi-planta"></span></p>
+          <p><strong>🆔 C.I.:</strong> <span id="ver-wifi-ci"></span></p>
+          <p><strong>🔢 S/N:</strong> <span id="ver-wifi-sn"></span></p>
+          <div>
+            <strong>📝 Comentarios:</strong>
+            <div
+              id="ver-wifi-comentarios"
+              style="
+                white-space: pre-wrap;
+                background: #f9f9f9;
+                padding: 15px;
+                margin-top: 10px;
+                border: 1px solid #eee;
+                border-radius: 5px;
+              "
+            ></div>
+          </div>
+          <div id="ver-wifi-foto-container" style="margin-top: 20px; display: none;">
+            <strong>📸 Foto:</strong>
+            <div style="margin-top: 10px; text-align: center;">
+              <img id="ver-wifi-foto" src="" alt="Foto Wifi" style="max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- MODAL AÑADIR/EDITAR WIFI -->
       <div id="modal-wifi-form" class="modal-overlay hidden" style="z-index: 5000">
         <div class="modal-content" style="max-width: 500px; padding: 20px; height: auto; max-height: 90vh; overflow-y: auto;">
@@ -1537,6 +1584,7 @@
                 📸 Foto y Datos
               </button>
               <span id="wifi-archivo-name" style="font-size: 0.9rem; color: #666; width: 100%;">Ninguna foto seleccionada</span>
+              <img id="wifi-archivo-preview" style="max-width: 100%; max-height: 200px; display: none; border-radius: 8px; border: 1px solid #ccc; margin-top: 10px;" />
               <input type="file" id="wifi-archivo-upload-solo" class="hidden-input" accept="image/*" onchange="handleWifiArchivo(event, false)" />
               <input type="file" id="wifi-archivo-upload-ocr" class="hidden-input" accept="image/*" onchange="handleWifiArchivo(event, true)" />
             </div>
@@ -1564,6 +1612,9 @@
               📁 Cargar Plano del Edificio
             </button>
             <input type="file" id="wifi-mapa-upload" class="hidden-input" accept="image/*,application/pdf" onchange="cargarImagenMapaWifi(event)" />
+            <button class="action-btn secondary" onclick="abrirSelectorPlanosWifi()">
+              📂 Seleccionar de Planos
+            </button>
             <button class="action-btn secondary" onclick="limpiarSimbolosWifi()">
               🧹 Limpiar Símbolos
             </button>
@@ -1583,6 +1634,20 @@
             <button class="action-btn danger" onclick="cerrarEditorMapaWifi()">Cerrar</button>
             <button id="btn-edit-wifi-mapa" class="action-btn secondary" onclick="activarEdicionMapaWifi()">Editar</button>
             <button id="btn-save-wifi-mapa" class="action-btn" onclick="guardarMapaWifi()">Guardar Datos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL SELECTOR DE PLANOS WIFI -->
+      <div id="modal-wifi-selector-planos" class="modal-overlay hidden" style="z-index: 5600">
+        <div class="modal-content" style="max-width: 600px; padding: 20px;">
+          <h3>Seleccionar Plano</h3>
+          <p style="color: #666; margin-bottom: 15px;">Selecciona un plano de la sección de documentos para usarlo como mapa.</p>
+          <div id="wifi-planos-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+            <!-- Rellenado por JS -->
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+            <button class="action-btn danger" onclick="cerrarSelectorPlanosWifi()">Cancelar</button>
           </div>
         </div>
       </div>
@@ -4136,7 +4201,7 @@
                 <td data-label="Acciones">
                   <div style="display: inline-flex; gap: 5px; align-items: center; flex-wrap: wrap;">
                     <button onclick="verEdificio(${eIndex}); abrirWifisEdificio();" class="action-btn" style="padding: 5px 10px; font-size: 1rem;" title="Ver en Edificio">👁️</button>
-                    <button onclick="verEdificio(${eIndex}); abrirWifisEdificio(); abrirModalWifi(${wIndex});" class="action-btn" style="padding: 5px 10px; font-size: 1rem; background-color: #8e44ad;" title="Ver Ficha Wifi">📶</button>
+                    <button onclick="verFichaWifi(${eIndex}, ${wIndex})" class="action-btn" style="padding: 5px 10px; font-size: 1rem; background-color: #8e44ad;" title="Ver Ficha Wifi">📶</button>
                   </div>
                 </td>
               `;
@@ -4623,6 +4688,7 @@
             </td>
             <td data-label="Acciones">
               <div style="display: flex; gap: 5px; justify-content: center;">
+                <button class="action-btn" onclick="verFichaWifi(currentVerEdificioIndex, ${index})" style="padding: 5px 10px; font-size: 0.9rem; background-color: #8e44ad;" title="Ver Ficha">📶</button>
                 <button class="action-btn" onclick="abrirModalWifi(${index})" style="padding: 5px 10px; font-size: 0.9rem;">✏️</button>
                 <button class="action-btn danger" onclick="eliminarWifi(${index})" style="padding: 5px 10px; font-size: 0.9rem;">🗑️</button>
               </div>
@@ -4695,6 +4761,16 @@
       function actualizarStatusWifiForm() {
         const e = dbEdificios[currentVerEdificioIndex];
         document.getElementById("wifi-archivo-name").innerText = tempWifiData.archivo ? tempWifiData.archivo.name : "Ningún archivo seleccionado";
+        
+        const preview = document.getElementById("wifi-archivo-preview");
+        if (tempWifiData.archivo && tempWifiData.archivo.dataUrl && tempWifiData.archivo.dataUrl.startsWith("data:image")) {
+          preview.src = tempWifiData.archivo.dataUrl;
+          preview.style.display = "block";
+        } else {
+          preview.src = "";
+          preview.style.display = "none";
+        }
+        
         let puntos = tempWifiData.puntosMapa || [];
         if (tempWifiData.mapaX !== null && tempWifiData.mapaY !== null && puntos.length === 0) {
           puntos = [{x: tempWifiData.mapaX, y: tempWifiData.mapaY}];
@@ -4747,6 +4823,12 @@
               const snMatch = text.match(/S\/N[\s:]*([A-Za-z0-9]+)/i) || text.match(/SN[\s:]*([A-Za-z0-9]+)/i);
               if (snMatch && snMatch[1]) {
                 document.getElementById("wifi-sn").value = snMatch[1];
+              } else {
+                // If S/N not explicitly found, use remaining text
+                let remainingText = text;
+                if (tfMatch) remainingText = remainingText.replace(tfMatch[0], "");
+                if (ciMatch) remainingText = remainingText.replace(ciMatch[0], "");
+                document.getElementById("wifi-sn").value = remainingText.replace(/\s+/g, " ").trim();
               }
 
               alert("Extracción completada. Por favor, revisa los datos extraídos.");
@@ -4841,6 +4923,85 @@
 
       function cerrarEditorMapaWifi() {
         document.getElementById("modal-wifi-mapa").classList.add("hidden");
+      }
+
+      function abrirSelectorPlanosWifi() {
+        const list = document.getElementById("wifi-planos-list");
+        list.innerHTML = "";
+        const planos = dbDocs["Planos y Esquemas"] || [];
+        
+        if (planos.length === 0) {
+          list.innerHTML = "<p style='text-align:center; color:#666;'>No hay planos disponibles en la sección Documentos.</p>";
+        } else {
+          planos.forEach((plano, index) => {
+            const btn = document.createElement("button");
+            btn.className = "action-btn secondary";
+            btn.style.textAlign = "left";
+            btn.style.padding = "10px";
+            btn.innerText = plano.name;
+            btn.onclick = () => seleccionarPlanoWifi(index);
+            list.appendChild(btn);
+          });
+        }
+        
+        document.getElementById("modal-wifi-selector-planos").classList.remove("hidden");
+      }
+
+      function cerrarSelectorPlanosWifi() {
+        document.getElementById("modal-wifi-selector-planos").classList.add("hidden");
+      }
+
+      function seleccionarPlanoWifi(index) {
+        const planos = dbDocs["Planos y Esquemas"] || [];
+        const plano = planos[index];
+        if (plano && plano.dataUrl) {
+          tempWifiData.mapaWifi = plano.dataUrl;
+          abrirEditorMapaWifi();
+          cerrarSelectorPlanosWifi();
+        }
+      }
+
+      let previousViewBeforeFichaWifi = null;
+
+      function verFichaWifi(eIndex, wIndex) {
+        if (document.getElementById("view-wifis").classList.contains("active")) {
+          previousViewBeforeFichaWifi = "view-wifis";
+        } else if (document.getElementById("view-wifis-global").classList.contains("active")) {
+          previousViewBeforeFichaWifi = "view-wifis-global";
+        } else {
+          previousViewBeforeFichaWifi = "view-wifis";
+        }
+
+        const e = dbEdificios[eIndex];
+        const wifi = e.wifis[wIndex];
+
+        document.getElementById("ver-wifi-nombre").innerText = wifi.nombre || "Sin Nombre";
+        document.getElementById("ver-wifi-edificio").innerText = e.nombre || "Desconocido";
+        document.getElementById("ver-wifi-planta").innerText = wifi.planta || "N/A";
+        document.getElementById("ver-wifi-ci").innerText = wifi.ci || "N/A";
+        document.getElementById("ver-wifi-sn").innerText = wifi.sn || "N/A";
+        document.getElementById("ver-wifi-comentarios").innerText = wifi.comentarios || "Sin comentarios.";
+
+        const fotoContainer = document.getElementById("ver-wifi-foto-container");
+        const fotoImg = document.getElementById("ver-wifi-foto");
+
+        if (wifi.archivo && wifi.archivo.dataUrl && wifi.archivo.dataUrl.startsWith("data:image")) {
+          fotoImg.src = wifi.archivo.dataUrl;
+          fotoContainer.style.display = "block";
+        } else {
+          fotoImg.src = "";
+          fotoContainer.style.display = "none";
+        }
+
+        showView("view-wifi-ver");
+      }
+
+      function volverDeFichaWifi() {
+        if (previousViewBeforeFichaWifi === "view-wifis-global") {
+          openWifisGlobal();
+        } else {
+          abrirWifisEdificio();
+        }
       }
 
       async function cargarImagenMapaWifi(event) {
