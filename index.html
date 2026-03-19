@@ -16,13 +16,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <!-- Lector de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>
-      // Configuración global de PDF.js
-      if (typeof pdfjsLib !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-      }
-    </script>
-
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -797,6 +792,10 @@
         margin-top: 20px;
       }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
   </head>
   <body>
     <header id="main-header">
@@ -895,7 +894,7 @@
             <div style="padding: 8px 16px; font-size: 0.85rem; color: #7f8c8d; font-weight: bold; background: #f9f9f9; border-bottom: 1px solid #eee; border-top: 1px solid #eee;">Otros</div>
             <button onclick="openEdificios(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">🏢 Edificios</button>
             <button onclick="openWifisGlobal(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">📶 Wifis</button>
-            <button onclick="openEquipos(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">🖥️ Equipos</button>
+            <button onclick="openEquiposModal(); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">🖥️ Equipos</button>
             <button onclick="openCategory('Trucos', 'Trucos'); toggleHeaderDropdown('ver-dropdown-menu', event);" style="padding-left: 25px;">💡 Trucos</button>
           </div>
         </div>
@@ -1230,59 +1229,14 @@
               <p style="margin-top: 0; color: #666;">Generado el: <span id="stat-pdf-date"></span></p>
           </div>
 
-          <style>
-            .stat-cards-container {
-              display: flex;
-              gap: 20px;
-              flex-wrap: wrap;
-              margin-bottom: 20px;
-            }
-            .stat-card {
-              flex: 1;
-              min-width: 200px;
-              border: 1px solid #eee;
-              text-align: center;
-              padding: 1rem;
-              background: var(--bg);
-              border-bottom: 3px solid var(--primary);
-            }
-            @media (max-width: 600px) {
-              .stat-cards-container {
-                flex-direction: column;
-                gap: 10px;
-              }
-              .stat-card {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                min-width: 100%;
-                padding: 10px 15px;
-                border-bottom: 1px solid #eee;
-                border-left: 3px solid var(--primary);
-              }
-              .stat-card h3 {
-                font-size: 1.5rem !important;
-                order: 2;
-              }
-              .stat-card p {
-                margin: 0 !important;
-                order: 1;
-                font-weight: bold;
-              }
-            }
-          </style>
-          <div class="stat-cards-container">
-            <div class="stat-card">
+          <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div class="menu-card sub-card" style="flex: 1; min-width: 200px; border: 1px solid #eee;">
               <h3 style="margin:0; font-size: 2rem; color: #3498db;" id="stat-total-files">0</h3>
               <p style="margin: 5px 0 0 0;">Total de Archivos</p>
             </div>
-            <div class="stat-card">
+            <div class="menu-card sub-card" style="flex: 1; min-width: 200px; border: 1px solid #eee;">
               <h3 style="margin:0; font-size: 2rem; color: #e74c3c;" id="stat-total-size">0 KB</h3>
               <p style="margin: 5px 0 0 0;">Tamaño Total</p>
-            </div>
-            <div class="stat-card">
-              <h3 style="margin:0; font-size: 2rem; color: #27ae60;" id="stat-total-equipos">0</h3>
-              <p style="margin: 5px 0 0 0;">Total de Equipos</p>
             </div>
           </div>
 
@@ -1328,6 +1282,9 @@
           <button class="action-btn home" onclick="goHome()">
             🏠 Menú Principal
           </button>
+          <button class="action-btn" onclick="abrirModalWifiGlobal()">
+            ➕ Añadir Wifi
+          </button>
         </div>
         <div class="table-container">
           <table class="data-table">
@@ -1335,92 +1292,15 @@
               <tr>
                 <th>Edificio</th>
                 <th>Planta</th>
-                <th>Nombre Wifi</th>
+                <th>Nombre</th>
+                <th>C.I.</th>
+                <th>S/N</th>
                 <th>Comentarios</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="wifis-global-table-body"></tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- PANTALLA EQUIPOS -->
-      <div id="view-equipos" class="view">
-        <h2>Listado de Equipos</h2>
-        <div class="action-bar" style="flex-wrap: wrap">
-          <button class="action-btn home" onclick="goHome()">🏠 Menú Principal</button>
-          <button class="action-btn" onclick="abrirModalCrearEquipo()">➕ Crear</button>
-          <button class="action-btn" style="background-color: #217346" onclick="document.getElementById('import-equipos-upload').click()">📥 Importar</button>
-          <input type="file" id="import-equipos-upload" class="hidden-input" accept=".json" onchange="importarEquipos(event)" />
-          <button class="action-btn" style="background-color: #2b579a" onclick="exportarEquipos()">📤 Exportar</button>
-          <button class="action-btn" style="background-color: #e74c3c" onclick="generarListadoEquiposPDF()">📄 Listado PDF</button>
-          <button class="action-btn" style="background-color: #217346" onclick="generarListadoEquiposExcel()">📊 Listado Excel</button>
-          <input type="text" id="buscador-equipos" class="form-control" placeholder="Buscar equipo..." style="flex: 1; min-width: 200px;" oninput="filtrarEquipos()" />
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Edificio</th>
-                <th>Rack</th>
-                <th>Equipo</th>
-                <th>CI</th>
-                <th>Nº de U</th>
-                <th>S/N</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="equipos-table-body"></tbody>
-          </table>
-        </div>
-        
-        <!-- Contenedor Oculto para Generación PDF de Equipos -->
-        <div id="equipos-pdf-export" style="display: none; background: white; padding: 20px; border-radius: 8px; color: #333;">
-            <div style="text-align: center; margin-bottom: 20px; color: #2c3e50;">
-                <h2 style="margin-bottom: 5px;">Listado de Equipos - WikiTegral</h2>
-                <p style="margin-top: 0; color: #666;">Generado el: <span id="equipos-pdf-date"></span></p>
-            </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <thead>
-                <tr>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Edificio</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Rack</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Equipo</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">CI</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Nº de U</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">S/N</th>
-                </tr>
-              </thead>
-              <tbody id="equipos-pdf-body"></tbody>
-            </table>
-        </div>
-      </div>
-
-      <!-- MODAL CREAR/EDITAR EQUIPO -->
-      <div id="modal-equipo-form" class="modal-overlay hidden" style="z-index: 5000">
-        <div class="modal-content" style="max-width: 500px; padding: 20px; height: auto; max-height: 90vh; overflow-y: auto;">
-          <h3 id="equipo-modal-title">Crear Equipo</h3>
-          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
-            <select id="equipo-edificio" class="form-control">
-              <option value="">Selecciona un Edificio</option>
-              <option value="Múltiples III">Múltiples III</option>
-              <option value="Múltiples II">Múltiples II</option>
-              <option value="Múltiples I">Múltiples I</option>
-            </select>
-            <input type="text" id="equipo-rack" class="form-control" placeholder="Nombre del Rack" />
-            <input type="text" id="equipo-nombre" class="form-control" placeholder="Nombre del equipo" />
-            <input type="text" id="equipo-ci" class="form-control" placeholder="CI" />
-            <select id="equipo-u" class="form-control">
-              <option value="">Selecciona Nº de U</option>
-            </select>
-            <input type="text" id="equipo-sn" class="form-control" placeholder="S/N (Serial Number)" />
-            <input type="hidden" id="equipo-id" />
-          </div>
-          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
-            <button class="action-btn danger" onclick="cerrarModalEquipo()">Cancelar</button>
-            <button class="action-btn" onclick="guardarEquipo()">Guardar</button>
-          </div>
         </div>
       </div>
 
@@ -1488,13 +1368,13 @@
                 <h2 style="margin-bottom: 5px;">Listado de Edificios - WikiTegral</h2>
                 <p style="margin-top: 0; color: #666;">Generado el: <span id="edificios-pdf-date"></span></p>
             </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
               <thead>
-                <tr>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Edificio</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Horario</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Contacto / Teléfono</th>
-                  <th style="background-color: #2c3e50; color: white; padding: 10px; border: 1px solid #ccc;">Notas</th>
+                <tr style="background: #2c3e50; color: white;">
+                  <th style="border: 1px solid #ccc; padding: 8px;">Edificio</th>
+                  <th style="border: 1px solid #ccc; padding: 8px;">Horario</th>
+                  <th style="border: 1px solid #ccc; padding: 8px;">Contacto</th>
+                  <th style="border: 1px solid #ccc; padding: 8px;">Notas</th>
                 </tr>
               </thead>
               <tbody id="edificios-pdf-body"></tbody>
@@ -1502,9 +1382,86 @@
         </div>
       </div>
 
+      <!-- PANTALLA EQUIPOS -->
+      <div id="view-equipos" class="view">
+        <h2>Gestión de Equipos</h2>
+        <div class="action-bar" style="flex-wrap: wrap">
+          <button class="action-btn home" onclick="goHome()">🏠 Menú Principal</button>
+          <button class="action-btn" onclick="openCreateEquipoModal()">➕ Crear</button>
+          <button class="action-btn" style="background-color: #217346" onclick="document.getElementById('import-equipos-upload').click()">📥 Importar</button>
+          <button class="action-btn" style="background-color: #2b579a" onclick="exportarEquipos()">📤 Exportar</button>
+          <button class="action-btn" style="background-color: #e74c3c;" onclick="generarListadoEquipos()">📄 Generar Listado</button>
+          <input type="file" id="import-equipos-upload" class="hidden-input" accept=".json" onchange="importarEquipos(event)" />
+        </div>
+        
+        <div class="search-container" style="margin-bottom: 20px;">
+          <input type="text" id="equipos-search-input" class="form-control" placeholder="Buscar por nombre, serial, rack, CI..." onkeyup="filterEquiposTable()" style="margin-bottom: 0;">
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Edificio</th>
+                <th>Rack</th>
+                <th>Equipo</th>
+                <th>CI</th>
+                <th>Nº U</th>
+                <th>S/N</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="equipos-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MODAL CREAR EQUIPO -->
+      <div id="create-equipo-modal" class="modal-overlay hidden">
+        <div class="modal-content small">
+          <div class="modal-header">
+            <h3 id="equipo-modal-title">Crear Registro de Equipo</h3>
+            <button onclick="closeCreateEquipoModal()">❌</button>
+          </div>
+          <div class="modal-body" style="padding: 20px;">
+            <div class="form-group">
+              <label>Edificio</label>
+              <select id="equipo-edificio" class="form-control">
+                <option value="Múltiples III">Múltiples III</option>
+                <option value="Múltiples II">Múltiples II</option>
+                <option value="Múltiples I">Múltiples I</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nombre del Rack</label>
+              <input type="text" id="equipo-rack" class="form-control" placeholder="Ej: RACK-01">
+            </div>
+            <div class="form-group">
+              <label>Nombre del equipo</label>
+              <input type="text" id="equipo-nombre" class="form-control" placeholder="Ej: Servidor Web">
+            </div>
+            <div class="form-group">
+              <label>CI</label>
+              <input type="text" id="equipo-ci" class="form-control" placeholder="Código de Inventario">
+            </div>
+            <div class="form-group">
+              <label>Nº de U</label>
+              <select id="equipo-u" class="form-control">
+                <!-- Generado por JS -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label>S/N (Serial Number)</label>
+              <input type="text" id="equipo-sn" class="form-control" placeholder="Número de Serie">
+            </div>
+            <button class="action-btn" onclick="guardarEquipo()" style="width: 100%; margin-top: 10px;">💾 Guardar</button>
+          </div>
+        </div>
+      </div>
+
       <!-- PANTALLA WIFIS -->
       <div id="view-wifis" class="view">
-        <h2>Registros de Wifi</h2>
+        <h2>Gestor de Wifis</h2>
         <div class="action-bar">
           <button
             class="action-btn"
@@ -1525,7 +1482,9 @@
             <thead>
               <tr>
                 <th>Planta</th>
-                <th>Nombre Wifi</th>
+                <th>Nombre</th>
+                <th>C.I.</th>
+                <th>S/N</th>
                 <th>Comentarios</th>
                 <th>Archivo</th>
                 <th>Mapa</th>
@@ -1540,24 +1499,51 @@
       <!-- MODAL AÑADIR/EDITAR WIFI -->
       <div id="modal-wifi-form" class="modal-overlay hidden" style="z-index: 5000">
         <div class="modal-content" style="max-width: 500px; padding: 20px; height: auto; max-height: 90vh; overflow-y: auto;">
-          <h3 id="wifi-modal-title">Añadir Wifi</h3>
+          <div style="background: #3498db; color: white; padding: 15px; margin: -20px -20px 15px -20px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.5rem;">📶</span>
+            <h3 id="wifi-modal-title" style="margin: 0;">Añadir Wifi</h3>
+          </div>
           <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
-            <input type="text" id="wifi-edificio" class="form-control" placeholder="Edificio" disabled />
-            <input type="text" id="wifi-planta" class="form-control" placeholder="Planta" />
-            <input type="text" id="wifi-nombre" class="form-control" placeholder="Nombre Wifi" />
+            <select id="wifi-edificio" class="form-control">
+            </select>
+            <select id="wifi-planta" class="form-control">
+              <option value="" disabled selected>Planta</option>
+              <option value="-2">-2</option>
+              <option value="-1">-1</option>
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+            </select>
+            <input type="text" id="wifi-nombre" class="form-control" placeholder="Nombre" />
+            <input type="text" id="wifi-ci" class="form-control" placeholder="C.I." />
+            <input type="text" id="wifi-sn" class="form-control" placeholder="S/N" />
             <textarea id="wifi-comentarios" class="form-control" placeholder="Comentarios" rows="3"></textarea>
             
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <button class="action-btn secondary" onclick="document.getElementById('wifi-archivo-upload').click()">
-                📁 Importar Archivo
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button class="action-btn secondary" onclick="document.getElementById('wifi-archivo-upload-solo').click()">
+                📸 Sólo Foto
               </button>
-              <span id="wifi-archivo-name" style="font-size: 0.9rem; color: #666;">Ningún archivo seleccionado</span>
-              <input type="file" id="wifi-archivo-upload" class="hidden-input" onchange="handleWifiArchivo(event)" />
+              <button id="btn-foto-datos" class="action-btn secondary" onclick="document.getElementById('wifi-archivo-upload-ocr').click()">
+                📸 Foto y Datos
+              </button>
+              <span id="wifi-archivo-name" style="font-size: 0.9rem; color: #666; width: 100%;">Ninguna foto seleccionada</span>
+              <input type="file" id="wifi-archivo-upload-solo" class="hidden-input" accept="image/*" onchange="handleWifiArchivo(event, false)" />
+              <input type="file" id="wifi-archivo-upload-ocr" class="hidden-input" accept="image/*" onchange="handleWifiArchivo(event, true)" />
             </div>
 
             <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
               <button class="action-btn secondary" onclick="abrirEditorMapaWifi()">
-                🗺️ Mapa
+                🗺️ Mapa/Ubicación
               </button>
               <span id="wifi-mapa-status" style="font-size: 0.9rem; color: #666;">Sin mapa</span>
             </div>
@@ -1573,7 +1559,7 @@
       <div id="modal-wifi-mapa" class="modal-overlay hidden" style="z-index: 5500">
         <div class="modal-content" style="max-width: 90vw; max-height: 90vh; padding: 20px; display: flex; flex-direction: column;">
           <h3 id="wifi-mapa-modal-title">Mapa Wifi</h3>
-          <div id="wifi-mapa-controls" style="display: flex; gap: 10px; margin-bottom: 10px;">
+          <div id="wifi-mapa-controls" style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
             <button class="action-btn secondary" onclick="document.getElementById('wifi-mapa-upload').click()">
               📁 Cargar Plano del Edificio
             </button>
@@ -1581,7 +1567,11 @@
             <button class="action-btn secondary" onclick="limpiarSimbolosWifi()">
               🧹 Limpiar Símbolos
             </button>
-            <span style="font-size: 0.9rem; color: #666; align-self: center;">Haz clic en el mapa para colocar los símbolos del Wifi actual.</span>
+            <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+              <label for="wifi-symbol-size" style="font-size: 0.9rem; color: #666;">Tamaño del símbolo:</label>
+              <input type="range" id="wifi-symbol-size" min="10" max="100" value="32" oninput="actualizarTamanoSimbolosWifi()" />
+            </div>
+            <span style="font-size: 0.9rem; color: #666; align-self: center; width: 100%;">Haz clic en el mapa para colocar los símbolos del Wifi actual.</span>
           </div>
           <div id="wifi-mapa-container" style="flex: 1; overflow: auto; border: 1px solid #ccc; background: #f0f0f0; min-height: 300px; display: flex; align-items: center; justify-content: center;">
             <span id="wifi-mapa-placeholder" style="color: #999;">Carga una imagen o PDF para empezar</span>
@@ -2512,8 +2502,8 @@
           let url = "";
           if (key === "wikiTegralDocs") url = "/api/docs";
           else if (key === "wikiTegralEdificios") url = "/api/buildings";
-          else if (key === "wikiTegralSecurity") url = "/api/security";
           else if (key === "wikiTegralEquipos") url = "/api/equipos";
+          else if (key === "wikiTegralSecurity") url = "/api/security";
           
           const response = await fetch(url);
           if (!response.ok) throw new Error("Network response was not ok");
@@ -2529,8 +2519,8 @@
           let url = "";
           if (key === "wikiTegralDocs") url = "/api/docs/sync";
           else if (key === "wikiTegralEdificios") url = "/api/buildings/sync";
-          else if (key === "wikiTegralSecurity") url = "/api/security";
           else if (key === "wikiTegralEquipos") url = "/api/equipos/sync";
+          else if (key === "wikiTegralSecurity") url = "/api/security";
 
           const response = await fetch(url, {
             method: "POST",
@@ -2550,25 +2540,21 @@
         let equipos = await getFromDB("wikiTegralEquipos");
         let security = await getFromDB("wikiTegralSecurity");
 
-        try {
-          if ((!docs || Object.keys(docs).length === 0) && localStorage.getItem("wikiTegralDocs")) {
-            docs = JSON.parse(localStorage.getItem("wikiTegralDocs"));
-            await saveToDB("wikiTegralDocs", docs);
-          }
-          if ((!edificios || edificios.length === 0) && localStorage.getItem("wikiTegralEdificios")) {
-            edificios = JSON.parse(localStorage.getItem("wikiTegralEdificios"));
-            await saveToDB("wikiTegralEdificios", edificios);
-          }
-          if ((!equipos || equipos.length === 0) && localStorage.getItem("wikiTegralEquipos")) {
-            equipos = JSON.parse(localStorage.getItem("wikiTegralEquipos"));
-            await saveToDB("wikiTegralEquipos", equipos);
-          }
-          if ((!security || !security.pinEnabled) && localStorage.getItem("wikiTegralSecurity")) {
-            security = JSON.parse(localStorage.getItem("wikiTegralSecurity"));
-            await saveToDB("wikiTegralSecurity", security);
-          }
-        } catch (e) {
-          console.warn("localStorage access denied or failed, skipping local migration:", e);
+        if ((!docs || Object.keys(docs).length === 0) && localStorage.getItem("wikiTegralDocs")) {
+          docs = JSON.parse(localStorage.getItem("wikiTegralDocs"));
+          await saveToDB("wikiTegralDocs", docs);
+        }
+        if ((!edificios || edificios.length === 0) && localStorage.getItem("wikiTegralEdificios")) {
+          edificios = JSON.parse(localStorage.getItem("wikiTegralEdificios"));
+          await saveToDB("wikiTegralEdificios", edificios);
+        }
+        if ((!equipos || equipos.length === 0) && localStorage.getItem("wikiTegralEquipos")) {
+          equipos = JSON.parse(localStorage.getItem("wikiTegralEquipos"));
+          await saveToDB("wikiTegralEquipos", equipos);
+        }
+        if ((!security || !security.pinEnabled) && localStorage.getItem("wikiTegralSecurity")) {
+          security = JSON.parse(localStorage.getItem("wikiTegralSecurity"));
+          await saveToDB("wikiTegralSecurity", security);
         }
 
         if (docs) dbDocs = docs;
@@ -2654,7 +2640,7 @@
         showView("view-security");
       }
 
-      async function saveSecuritySettings() {
+      function saveSecuritySettings() {
         const enabled = document.getElementById("security-pin-toggle").checked;
         const pin = document.getElementById("security-pin-value").value.trim();
         const dni = document.getElementById("security-dni-value").value.trim();
@@ -2672,10 +2658,7 @@
           pin: pin,
           dni: dni,
         };
-        const response = await saveToDB("wikiTegralSecurity", dbSecurity);
-        if (response && response.success && response.data) {
-          dbSecurity = response.data;
-        }
+        saveToDB("wikiTegralSecurity", dbSecurity);
 
         goHome();
         showCustomModal({
@@ -2798,7 +2781,7 @@
         reader.onload = async (ev) => {
           try {
             const backup = JSON.parse(ev.target.result);
-            if (!backup.docs && !backup.edificios && !backup.equipos) {
+            if (!backup.docs && !backup.edificios) {
               throw new Error("Formato inválido");
             }
 
@@ -2939,7 +2922,6 @@
 
         document.getElementById('stat-total-files').innerText = totalFiles;
         document.getElementById('stat-total-size').innerText = formatBytes(totalSizeBytes);
-        document.getElementById('stat-total-equipos').innerText = dbEquipos.length;
 
         const typeBody = document.getElementById('stat-type-body');
         if (Object.keys(typeStats).length === 0) {
@@ -2954,6 +2936,54 @@
                     <td data-label="Tamaño Total">${formatBytes(typeStats[type].size)}</td>
                 </tr>
             `).join('');
+        }
+
+        // Añadir estadísticas de equipos
+        const equiposCount = dbEquipos.length;
+        const equiposSection = `
+          <h3 style="margin-top: 30px; color: #2c3e50; border-bottom: 2px solid #27ae60; padding-bottom: 5px;">Equipos (${equiposCount})</h3>
+          <div class="equipos-list-mobile" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+            ${dbEquipos.length === 0 ? '<p style="text-align:center; color:#666;">No hay equipos registrados.</p>' : 
+              dbEquipos.map(eq => `
+                <div style="background: #f8f9fa; border-left: 4px solid #27ae60; padding: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                  <div style="font-weight: bold; color: #2c3e50; font-size: 1.1rem; margin-bottom: 5px;">${eq.nombre}</div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.9rem; color: #555;">
+                    <div><strong>Edificio:</strong> ${eq.edificio}</div>
+                    <div><strong>Rack:</strong> ${eq.rack}</div>
+                    <div><strong>CI:</strong> ${eq.ci}</div>
+                    <div><strong>Nº U:</strong> ${eq.u}</div>
+                    <div style="grid-column: span 2;"><strong>S/N:</strong> ${eq.sn}</div>
+                  </div>
+                </div>
+              `).join('')
+            }
+          </div>
+        `;
+        
+        // Insertar antes del detalle de archivos
+        const exportArea = document.getElementById('statistics-export-area');
+        
+        // Limpiar secciones previas de equipos si existen
+        const oldEquipos = exportArea.querySelectorAll('.equipos-list-mobile, h3[style*="border-bottom: 2px solid #27ae60"]');
+        oldEquipos.forEach(el => el.remove());
+        
+        // Re-query detailHeader after removal
+        const detailHeader = exportArea.querySelector('h3:last-of-type');
+        
+        // Find the direct child of exportArea that is the detailHeader or contains it
+        let referenceNode = detailHeader;
+        while (referenceNode && referenceNode.parentNode !== exportArea) {
+            referenceNode = referenceNode.parentNode;
+        }
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = equiposSection;
+        while (tempDiv.firstChild) {
+            if (referenceNode) {
+                exportArea.insertBefore(tempDiv.firstChild, referenceNode);
+            } else {
+                exportArea.appendChild(tempDiv.firstChild);
+            }
         }
 
         currentStatFiles = fileDetails;
@@ -3185,6 +3215,276 @@
         showView('view-recents');
       }
 
+      // --- LÓGICA DE EQUIPOS ---
+      let editingEquipoIndex = null;
+
+      function openEquiposModal() {
+        renderEquiposTable();
+        showView('view-equipos');
+      }
+
+      function openCreateEquipoModal(index = null) {
+        editingEquipoIndex = index;
+        const title = document.getElementById('equipo-modal-title');
+        const selectU = document.getElementById('equipo-u');
+        
+        // Llenar select de U (1-42)
+        selectU.innerHTML = '';
+        for (let i = 1; i <= 42; i++) {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = i;
+          selectU.appendChild(opt);
+        }
+
+        if (index !== null) {
+          const eq = dbEquipos[index];
+          title.textContent = 'Editar Registro de Equipo';
+          document.getElementById('equipo-edificio').value = eq.edificio;
+          document.getElementById('equipo-rack').value = eq.rack;
+          document.getElementById('equipo-nombre').value = eq.nombre;
+          document.getElementById('equipo-ci').value = eq.ci;
+          document.getElementById('equipo-u').value = eq.u;
+          document.getElementById('equipo-sn').value = eq.sn;
+        } else {
+          title.textContent = 'Crear Registro de Equipo';
+          document.getElementById('equipo-edificio').value = 'Múltiples III';
+          document.getElementById('equipo-rack').value = '';
+          document.getElementById('equipo-nombre').value = '';
+          document.getElementById('equipo-ci').value = '';
+          document.getElementById('equipo-u').value = '1';
+          document.getElementById('equipo-sn').value = '';
+        }
+
+        document.getElementById('create-equipo-modal').classList.remove('hidden');
+      }
+
+      function closeCreateEquipoModal() {
+        document.getElementById('create-equipo-modal').classList.add('hidden');
+      }
+
+      async function guardarEquipo() {
+        const edificio = document.getElementById('equipo-edificio').value;
+        const rack = document.getElementById('equipo-rack').value.trim();
+        const nombre = document.getElementById('equipo-nombre').value.trim();
+        const ci = document.getElementById('equipo-ci').value.trim();
+        const u = document.getElementById('equipo-u').value;
+        const sn = document.getElementById('equipo-sn').value.trim();
+
+        if (!rack || !nombre || !sn) {
+          showCustomModal({ message: "Por favor, completa los campos obligatorios (Rack, Nombre, S/N)." });
+          return;
+        }
+
+        const equipoData = { edificio, rack, nombre, ci, u, sn };
+
+        if (editingEquipoIndex !== null) {
+          dbEquipos[editingEquipoIndex] = equipoData;
+        } else {
+          dbEquipos.push(equipoData);
+        }
+
+        await saveToDB('wikiTegralEquipos', dbEquipos);
+        closeCreateEquipoModal();
+        renderEquiposTable();
+        showCustomModal({ message: "Equipo guardado correctamente." });
+      }
+
+      function renderEquiposTable(data = dbEquipos) {
+        const tbody = document.getElementById('equipos-table-body');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay equipos registrados.</td></tr>';
+          return;
+        }
+
+        data.forEach((eq, idx) => {
+          // Encontrar el índice original si data es un filtro
+          const originalIdx = dbEquipos.indexOf(eq);
+          
+          tbody.innerHTML += `
+            <tr>
+              <td data-label="Edificio">${eq.edificio}</td>
+              <td data-label="Rack">${eq.rack}</td>
+              <td data-label="Equipo">${eq.nombre}</td>
+              <td data-label="CI">${eq.ci}</td>
+              <td data-label="Nº U">${eq.u}</td>
+              <td data-label="S/N">${eq.sn}</td>
+              <td data-label="Acciones">
+                <div style="display: flex; gap: 5px;">
+                  <button class="action-btn" style="background-color: #3498db; padding: 5px 10px;" onclick="openCreateEquipoModal(${originalIdx})">✏️</button>
+                  <button class="action-btn danger" style="padding: 5px 10px;" onclick="eliminarEquipo(${originalIdx})">🗑️</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      function filterEquiposTable() {
+        const q = document.getElementById('equipos-search-input').value.toLowerCase().trim();
+        if (!q) {
+          renderEquiposTable();
+          return;
+        }
+
+        const filtered = dbEquipos.filter(eq => 
+          eq.nombre.toLowerCase().includes(q) ||
+          eq.sn.toLowerCase().includes(q) ||
+          eq.rack.toLowerCase().includes(q) ||
+          eq.ci.toLowerCase().includes(q) ||
+          eq.edificio.toLowerCase().includes(q)
+        );
+
+        renderEquiposTable(filtered);
+      }
+
+      async function eliminarEquipo(index) {
+        showCustomModal({
+          title: "Confirmar eliminación",
+          message: "¿Estás seguro de que deseas eliminar este equipo?",
+          showCancel: true,
+          onConfirm: async () => {
+            dbEquipos.splice(index, 1);
+            await saveToDB('wikiTegralEquipos', dbEquipos);
+            renderEquiposTable();
+          }
+        });
+      }
+
+      async function exportarEquipos() {
+        const today = new Date();
+        const dateStr = today.toISOString().slice(0, 10);
+        const timeStr = today.toTimeString().slice(0, 5).replace(':', '-');
+        const fileName = `G.Equipos+${dateStr}+${timeStr}.json`;
+        
+        const data = JSON.stringify(dbEquipos, null, 2);
+        
+        try {
+          if (window.showSaveFilePicker) {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: fileName,
+              types: [{ accept: { "application/json": [".json"] } }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(data);
+            await writable.close();
+          } else {
+            const blob = new Blob([data], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+          }
+        } catch (err) {
+          if (err.name !== "AbortError") showCustomModal({ message: "Error al exportar equipos." });
+        }
+      }
+
+      function importarEquipos(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const imported = JSON.parse(ev.target.result);
+            if (!Array.isArray(imported)) throw new Error("Formato inválido");
+
+            showCustomModal({
+              title: "Importar Equipos",
+              message: "¿Deseas sumar los equipos a los existentes o sobreescribir todo?",
+              showCancel: true,
+              okText: "Sumar",
+              cancelText: "Sobreescribir",
+              onConfirm: async () => {
+                // Sumar
+                imported.forEach(imp => {
+                  const exists = dbEquipos.some(e => e.sn === imp.sn && e.nombre === imp.nombre);
+                  if (!exists) dbEquipos.push(imp);
+                });
+                await saveToDB('wikiTegralEquipos', dbEquipos);
+                renderEquiposTable();
+                showCustomModal({ message: "Equipos sumados correctamente." });
+              },
+              onCancel: async () => {
+                // Sobreescribir
+                dbEquipos = imported;
+                await saveToDB('wikiTegralEquipos', dbEquipos);
+                renderEquiposTable();
+                showCustomModal({ message: "Equipos sobreescritos correctamente." });
+              }
+            });
+          } catch (err) {
+            showCustomModal({ message: "Error al importar el archivo JSON." });
+          }
+          e.target.value = '';
+        };
+        reader.readAsText(file);
+      }
+
+      async function generarListadoEquipos() {
+        // Generar PDF con html2pdf
+        const tempDiv = document.createElement('div');
+        tempDiv.style.padding = '20px';
+        tempDiv.style.background = 'white';
+        tempDiv.innerHTML = `
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2>Listado de Equipos - WikiTegral</h2>
+            <p>Fecha: ${new Date().toLocaleString()}</p>
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #2c3e50; color: white;">
+                <th style="border: 1px solid #ccc; padding: 8px;">Edificio</th>
+                <th style="border: 1px solid #ccc; padding: 8px;">Rack</th>
+                <th style="border: 1px solid #ccc; padding: 8px;">Equipo</th>
+                <th style="border: 1px solid #ccc; padding: 8px;">CI</th>
+                <th style="border: 1px solid #ccc; padding: 8px;">Nº U</th>
+                <th style="border: 1px solid #ccc; padding: 8px;">S/N</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dbEquipos.map(eq => `
+                <tr>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.edificio}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.rack}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.nombre}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.ci}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.u}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.sn}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+
+        const opt = {
+          margin: 0.5,
+          filename: `Listado_Equipos_${new Date().toLocaleDateString()}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+        };
+
+        try {
+          if (window.showSaveFilePicker) {
+            const pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
+            const handle = await window.showSaveFilePicker({
+              suggestedName: opt.filename,
+              types: [{ accept: { "application/pdf": [".pdf"] } }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(pdfBlob);
+            await writable.close();
+          } else {
+            await html2pdf().set(opt).from(tempDiv).save();
+          }
+        } catch (err) {
+          if (err.name !== "AbortError") showCustomModal({ message: "Error al generar el PDF." });
+        }
+      }
+
       // --- NAVEGACIÓN ---
       function showView(id) {
         document
@@ -3403,12 +3703,8 @@
         });
       }
 
-      async function saveDocs() {
-        const response = await saveToDB("wikiTegralDocs", dbDocs);
-        if (response && response.success && response.data) {
-          dbDocs = response.data;
-          renderDocs();
-        }
+      function saveDocs() {
+        saveToDB("wikiTegralDocs", dbDocs);
       }
 
       // --- EDITOR ---
@@ -3483,135 +3779,45 @@
 
         if (ext === "pdf") {
           htmlDiv.innerHTML =
-            '<div id="pdf-loading" style="text-align:center; padding:20px;">Cargando PDF...</div>' +
-            '<div id="pdf-container" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding: 10px;"></div>';
+            '<div id="pdf-container" style="display:flex; flex-direction:column; align-items:center; gap:10px;"></div>';
           htmlDiv.classList.remove("hidden-el");
 
           try {
-            if (typeof pdfjsLib === 'undefined') {
-              throw new Error("La librería PDF.js no está cargada.");
-            }
-
-            let pdfData;
-            if (doc.dataUrl.startsWith('data:application/pdf;base64,')) {
-              try {
-                const base64 = doc.dataUrl.split(",")[1];
-                const binary_string = window.atob(base64);
-                const len = binary_string.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                  bytes[i] = binary_string.charCodeAt(i);
-                }
-                pdfData = { data: bytes };
-              } catch (b64Err) {
-                console.error("Error decodificando base64:", b64Err);
-                throw new Error("El archivo PDF está corrupto o no es válido.");
-              }
-            } else {
-              pdfData = { url: doc.dataUrl };
-            }
-
-            const loadingTask = pdfjsLib.getDocument(pdfData);
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+            const loadingTask = pdfjsLib.getDocument(doc.dataUrl);
             const pdf = await loadingTask.promise;
-            
-            const loadingMsg = document.getElementById("pdf-loading");
-            if (loadingMsg) loadingMsg.style.display = "none";
-            
             const container = document.getElementById("pdf-container");
 
-            // IntersectionObserver para carga perezosa de páginas
-            const observerOptions = {
-              root: document.querySelector('#document-viewer-modal .modal-content'),
-              rootMargin: '500px', // Cargar páginas antes de que lleguen a verse
-              threshold: 0
-            };
-
-            const pageObserver = new IntersectionObserver((entries, observer) => {
-              entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                  const pageDiv = entry.target;
-                  const pageNum = parseInt(pageDiv.dataset.pageNum);
-                  if (!pageDiv.dataset.rendered) {
-                    renderPage(pdf, pageNum, pageDiv);
-                    pageDiv.dataset.rendered = "true";
-                    observer.unobserve(pageDiv);
-                  }
-                }
-              });
-            }, observerOptions);
-
-            async function renderPage(pdfDoc, pageNum, pageDiv) {
-              try {
-                const page = await pdfDoc.getPage(pageNum);
-                const scale = 1.5; // Escala fija para mejor calidad
-                const viewport = page.getViewport({ scale });
-
-                const canvas = document.createElement("canvas");
-                const context = canvas.getContext("2d");
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                canvas.style.maxWidth = "100%";
-                canvas.style.height = "auto";
-                canvas.style.display = "block";
-                canvas.style.backgroundColor = "white";
-
-                const renderContext = {
-                  canvasContext: context,
-                  viewport: viewport,
-                };
-                
-                pageDiv.innerHTML = ""; // Quitar el placeholder
-                pageDiv.appendChild(canvas);
-                await page.render(renderContext).promise;
-              } catch (err) {
-                console.error(`Error rendering page ${pageNum}:`, err);
-                pageDiv.innerHTML = `<div style="padding:20px; color:red;">Error al cargar la página ${pageNum}</div>`;
-              }
-            }
-
-            // Crear placeholders para todas las páginas
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-              const pageDiv = document.createElement("div");
-              pageDiv.className = "pdf-page-wrapper";
-              pageDiv.dataset.pageNum = pageNum;
-              pageDiv.style.width = "100%";
-              pageDiv.style.minHeight = "800px"; // Altura estimada inicial
-              pageDiv.style.marginBottom = "20px";
-              pageDiv.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
-              pageDiv.style.backgroundColor = "#eee";
-              pageDiv.style.display = "flex";
-              pageDiv.style.alignItems = "center";
-              pageDiv.style.justifyContent = "center";
-              pageDiv.innerHTML = `<div style="color:#666;">Cargando página ${pageNum}...</div>`;
-              
-              container.appendChild(pageDiv);
-              pageObserver.observe(pageDiv);
+              const page = await pdf.getPage(pageNum);
+              const scale = 1.5;
+              const viewport = page.getViewport({ scale: scale });
+
+              const canvas = document.createElement("canvas");
+              const context = canvas.getContext("2d");
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              canvas.style.maxWidth = "100%";
+              canvas.style.height = "auto";
+              canvas.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
+              canvas.style.marginBottom = "10px";
+
+              const renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+              };
+              await page.render(renderContext).promise;
+              container.appendChild(canvas);
             }
           } catch (error) {
-            console.error("Error rendering PDF with PDF.js:", error);
-            // Fallback to iframe
-            try {
-              // Si es un dataUrl, lo convertimos a blob para que el iframe lo maneje mejor
-              let blobUrl = doc.dataUrl;
-              if (doc.dataUrl.startsWith('data:')) {
-                const res = await fetch(doc.dataUrl);
-                const blob = await res.blob();
-                blobUrl = URL.createObjectURL(blob);
-              }
-              
-              frame.src = blobUrl;
-              frame.classList.remove("hidden-el");
-              htmlDiv.classList.add("hidden-el");
-            } catch (fallbackError) {
-              console.error("Fallback PDF error:", fallbackError);
-              htmlDiv.innerHTML = `
-                <div style="padding:40px; text-align:center;">
-                  <p>No se pudo previsualizar el PDF directamente.</p>
-                  <a href="${doc.dataUrl}" download="${doc.name}" class="action-btn" style="display:inline-block; margin-top:10px; text-decoration:none;">
-                    📥 Descargar para ver
-                  </a>
-                </div>`;
-            }
+            console.error("Error rendering PDF:", error);
+            const res = await fetch(doc.dataUrl);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            frame.src = blobUrl;
+            frame.classList.remove("hidden-el");
+            htmlDiv.classList.add("hidden-el");
           }
         } else if (["jpg", "jpeg", "png", "gif"].includes(ext)) {
           htmlDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%;"><img src="${doc.dataUrl}" style="max-width:100%; max-height:calc(100vh - 140px); object-fit:contain; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>`;
@@ -3899,236 +4105,6 @@
         }
       }
 
-      // --- EQUIPOS ---
-      function openEquipos() {
-        renderEquiposTable();
-        showView("view-equipos");
-      }
-
-      function renderEquiposTable() {
-        const tbody = document.getElementById("equipos-table-body");
-        tbody.innerHTML = "";
-        const searchTerm = document.getElementById("buscador-equipos").value.toLowerCase();
-
-        let filteredEquipos = dbEquipos;
-        if (searchTerm) {
-          filteredEquipos = dbEquipos.filter(eq => 
-            (eq.edificio && eq.edificio.toLowerCase().includes(searchTerm)) ||
-            (eq.rack && eq.rack.toLowerCase().includes(searchTerm)) ||
-            (eq.nombre && eq.nombre.toLowerCase().includes(searchTerm)) ||
-            (eq.ci && eq.ci.toLowerCase().includes(searchTerm)) ||
-            (eq.u && eq.u.toLowerCase().includes(searchTerm)) ||
-            (eq.sn && eq.sn.toLowerCase().includes(searchTerm))
-          );
-        }
-
-        if (filteredEquipos.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No hay equipos registrados.</td></tr>`;
-          return;
-        }
-
-        filteredEquipos.forEach((eq) => {
-          const originalIndex = dbEquipos.indexOf(eq);
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td data-label="Edificio">${eq.edificio || ""}</td>
-            <td data-label="Rack">${eq.rack || ""}</td>
-            <td data-label="Equipo">${eq.nombre || ""}</td>
-            <td data-label="CI">${eq.ci || ""}</td>
-            <td data-label="Nº de U">${eq.u || ""}</td>
-            <td data-label="S/N">${eq.sn || ""}</td>
-            <td data-label="Acciones">
-              <button onclick="editarEquipo(${originalIndex})" class="action-btn secondary" style="padding: 5px 10px; font-size: 1rem;" title="Editar">✏️</button>
-              <button onclick="eliminarEquipo(${originalIndex})" class="action-btn danger" style="padding: 5px 10px; font-size: 1rem;" title="Eliminar">🗑️</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-      }
-
-      function filtrarEquipos() {
-        renderEquiposTable();
-      }
-
-      function abrirModalCrearEquipo() {
-        document.getElementById("equipo-modal-title").innerText = "Crear Equipo";
-        document.getElementById("equipo-id").value = "";
-        document.getElementById("equipo-edificio").value = "";
-        document.getElementById("equipo-rack").value = "";
-        document.getElementById("equipo-nombre").value = "";
-        document.getElementById("equipo-ci").value = "";
-        
-        // Populate U dropdown
-        const uSelect = document.getElementById("equipo-u");
-        uSelect.innerHTML = '<option value="">Selecciona Nº de U</option>';
-        for (let i = 1; i <= 42; i++) {
-          uSelect.innerHTML += `<option value="${i}">${i}</option>`;
-        }
-        uSelect.value = "";
-        
-        document.getElementById("equipo-sn").value = "";
-        document.getElementById("modal-equipo-form").classList.remove("hidden");
-      }
-
-      function editarEquipo(index) {
-        const eq = dbEquipos[index];
-        document.getElementById("equipo-modal-title").innerText = "Editar Equipo";
-        document.getElementById("equipo-id").value = index;
-        document.getElementById("equipo-edificio").value = eq.edificio || "";
-        document.getElementById("equipo-rack").value = eq.rack || "";
-        document.getElementById("equipo-nombre").value = eq.nombre || "";
-        document.getElementById("equipo-ci").value = eq.ci || "";
-        
-        const uSelect = document.getElementById("equipo-u");
-        uSelect.innerHTML = '<option value="">Selecciona Nº de U</option>';
-        for (let i = 1; i <= 42; i++) {
-          uSelect.innerHTML += `<option value="${i}">${i}</option>`;
-        }
-        uSelect.value = eq.u || "";
-        
-        document.getElementById("equipo-sn").value = eq.sn || "";
-        document.getElementById("modal-equipo-form").classList.remove("hidden");
-      }
-
-      function cerrarModalEquipo() {
-        document.getElementById("modal-equipo-form").classList.add("hidden");
-      }
-
-      async function guardarEquipo() {
-        const id = document.getElementById("equipo-id").value;
-        const eq = {
-          edificio: document.getElementById("equipo-edificio").value,
-          rack: document.getElementById("equipo-rack").value,
-          nombre: document.getElementById("equipo-nombre").value,
-          ci: document.getElementById("equipo-ci").value,
-          u: document.getElementById("equipo-u").value,
-          sn: document.getElementById("equipo-sn").value,
-        };
-
-        if (id === "") {
-          dbEquipos.push(eq);
-        } else {
-          dbEquipos[parseInt(id)] = eq;
-        }
-
-        await saveToDB("wikiTegralEquipos", dbEquipos);
-        cerrarModalEquipo();
-        renderEquiposTable();
-      }
-
-      async function eliminarEquipo(index) {
-        if (confirm("¿Estás seguro de eliminar este equipo?")) {
-          dbEquipos.splice(index, 1);
-          await saveToDB("wikiTegralEquipos", dbEquipos);
-          renderEquiposTable();
-        }
-      }
-
-      async function importarEquipos(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async function (e) {
-          try {
-            const data = JSON.parse(e.target.result);
-            if (Array.isArray(data)) {
-              if (confirm("¿Deseas sobrescribir los equipos actuales? (Aceptar = Sobrescribir, Cancelar = Añadir)")) {
-                dbEquipos = data;
-              } else {
-                dbEquipos = dbEquipos.concat(data);
-              }
-              await saveToDB("wikiTegralEquipos", dbEquipos);
-              renderEquiposTable();
-              alert("Equipos importados correctamente.");
-            } else {
-              alert("El archivo JSON no tiene el formato correcto.");
-            }
-          } catch (error) {
-            alert("Error al leer el archivo JSON.");
-          }
-        };
-        reader.readAsText(file);
-        event.target.value = ""; // Reset input
-      }
-
-      function exportarEquipos() {
-        const dataStr = JSON.stringify(dbEquipos, null, 2);
-        const today = new Date();
-        const dateStr = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()} ${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`;
-        const fileName = `G.Equipos ${dateStr}.json`;
-
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-
-      function generarListadoEquiposPDF() {
-        const tbody = document.getElementById("equipos-pdf-body");
-        tbody.innerHTML = "";
-        
-        dbEquipos.forEach((eq) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td style="padding: 8px; border: 1px solid #ccc;">${eq.edificio || ""}</td>
-            <td style="padding: 8px; border: 1px solid #ccc;">${eq.rack || ""}</td>
-            <td style="padding: 8px; border: 1px solid #ccc;">${eq.nombre || ""}</td>
-            <td style="padding: 8px; border: 1px solid #ccc;">${eq.ci || ""}</td>
-            <td style="padding: 8px; border: 1px solid #ccc;">${eq.u || ""}</td>
-            <td style="padding: 8px; border: 1px solid #ccc;">${eq.sn || ""}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        const today = new Date();
-        document.getElementById("equipos-pdf-date").innerText = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()} ${String(today.getHours()).padStart(2, "0")}:${String(today.getMinutes()).padStart(2, "0")}`;
-
-        const element = document.getElementById("equipos-pdf-export");
-        element.style.display = "block";
-
-        const opt = {
-          margin: 10,
-          filename: `Listado_Equipos_${today.getTime()}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-        };
-
-        html2pdf().set(opt).from(element).save().then(() => {
-          element.style.display = "none";
-        });
-      }
-
-      function generarListadoEquiposExcel() {
-        if (!window.XLSX) {
-          showCustomModal({ message: "La librería de Excel no está cargada." });
-          return;
-        }
-        
-        const data = dbEquipos.map(eq => ({
-          "Edificio": eq.edificio || "",
-          "Rack": eq.rack || "",
-          "Equipo": eq.nombre || "",
-          "CI": eq.ci || "",
-          "Nº de U": eq.u || "",
-          "S/N": eq.sn || ""
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Equipos");
-
-        const today = new Date();
-        const dateStr = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()}`;
-        XLSX.writeFile(wb, `Listado_Equipos_${dateStr}.xlsx`);
-      }
-
       // --- EDIFICIOS ---
       function openEdificios() {
         renderEdificios();
@@ -4153,7 +4129,9 @@
               tr.innerHTML = `
                 <td data-label="Edificio">${edificio.nombre}</td>
                 <td data-label="Planta">${wifi.planta || ""}</td>
-                <td data-label="Nombre Wifi">${wifi.nombre}</td>
+                <td data-label="Nombre">${wifi.nombre}</td>
+                <td data-label="C.I.">${wifi.ci || ""}</td>
+                <td data-label="S/N">${wifi.sn || ""}</td>
                 <td data-label="Comentarios">${wifi.comentarios || ""}</td>
                 <td data-label="Acciones">
                   <div style="display: inline-flex; gap: 5px; align-items: center; flex-wrap: wrap;">
@@ -4168,7 +4146,7 @@
         });
         
         if (!hasWifis) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">No hay wifis registrados en ningún edificio.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px;">No hay wifis registrados en ningún edificio.</td></tr>`;
         }
       }
 
@@ -4625,7 +4603,7 @@
         tbody.innerHTML = "";
         const e = dbEdificios[currentVerEdificioIndex];
         if (!e.wifis || e.wifis.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay registros de Wifi.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No hay registros de Wifi.</td></tr>';
           return;
         }
 
@@ -4633,7 +4611,9 @@
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td data-label="Planta">${wifi.planta || ""}</td>
-            <td data-label="Nombre Wifi">${wifi.nombre || ""}</td>
+            <td data-label="Nombre">${wifi.nombre || ""}</td>
+            <td data-label="C.I.">${wifi.ci || ""}</td>
+            <td data-label="S/N">${wifi.sn || ""}</td>
             <td data-label="Comentarios">${wifi.comentarios || ""}</td>
             <td data-label="Archivo">
               ${wifi.archivo ? `<button class="action-btn secondary" onclick="descargarArchivoWifi(${index})" style="padding: 5px 10px; font-size: 0.9rem;">📄 Descargar</button>` : "Sin archivo"}
@@ -4661,22 +4641,49 @@
         showView("view-wifis");
       }
 
+      function abrirModalWifiGlobal() {
+        currentVerEdificioIndex = null;
+        abrirModalWifi(null);
+      }
+
       function abrirModalWifi(index = null) {
         currentWifiIndex = index;
-        const e = dbEdificios[currentVerEdificioIndex];
-        document.getElementById("wifi-edificio").value = e.nombre;
+        const select = document.getElementById("wifi-edificio");
+        select.innerHTML = '<option value="" disabled selected>Edificio</option>';
+        
+        dbEdificios.forEach((e, i) => {
+          if (e.nombre) {
+            const option = document.createElement("option");
+            option.value = i;
+            option.text = e.nombre;
+            select.appendChild(option);
+          }
+        });
+
+        if (currentVerEdificioIndex !== null) {
+          select.value = currentVerEdificioIndex;
+          select.disabled = true;
+        } else {
+          select.disabled = false;
+        }
         
         if (index !== null) {
           document.getElementById("wifi-modal-title").innerText = "Editar Wifi";
+          const ediIndex = currentVerEdificioIndex !== null ? currentVerEdificioIndex : parseInt(select.value);
+          const e = dbEdificios[ediIndex];
           const wifi = e.wifis[index];
           document.getElementById("wifi-planta").value = wifi.planta || "";
           document.getElementById("wifi-nombre").value = wifi.nombre || "";
+          document.getElementById("wifi-ci").value = wifi.ci || "";
+          document.getElementById("wifi-sn").value = wifi.sn || "";
           document.getElementById("wifi-comentarios").value = wifi.comentarios || "";
           tempWifiData = { ...wifi };
         } else {
           document.getElementById("wifi-modal-title").innerText = "Añadir Wifi";
           document.getElementById("wifi-planta").value = "";
           document.getElementById("wifi-nombre").value = "";
+          document.getElementById("wifi-ci").value = "";
+          document.getElementById("wifi-sn").value = "";
           document.getElementById("wifi-comentarios").value = "";
           tempWifiData = { archivo: null, mapaWifi: null, puntosMapa: [] };
         }
@@ -4699,19 +4706,66 @@
         document.getElementById("modal-wifi-form").classList.add("hidden");
       }
 
-      function handleWifiArchivo(event) {
+      function handleWifiArchivo(event, useOCR) {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = async (ev) => {
           tempWifiData.archivo = {
             name: file.name,
             type: file.type,
             dataUrl: ev.target.result
           };
           actualizarStatusWifiForm();
+
+          if (useOCR) {
+            const btn = document.getElementById("btn-foto-datos");
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Procesando...";
+            btn.disabled = true;
+
+            try {
+              const worker = await Tesseract.createWorker('spa');
+              const ret = await worker.recognize(file);
+              const text = ret.data.text;
+              await worker.terminate();
+
+              // Simple extraction logic
+              // Nombre usually starts with TF
+              const tfMatch = text.match(/TF[A-Za-z0-9_-]+/i);
+              if (tfMatch) {
+                document.getElementById("wifi-nombre").value = tfMatch[0];
+              }
+
+              // C.I. usually starts with 10
+              const ciMatch = text.match(/10[0-9]{4,}/);
+              if (ciMatch) {
+                document.getElementById("wifi-ci").value = ciMatch[0];
+              }
+
+              // S/N usually follows SN or S/N
+              const snMatch = text.match(/S\/N[\s:]*([A-Za-z0-9]+)/i) || text.match(/SN[\s:]*([A-Za-z0-9]+)/i);
+              if (snMatch && snMatch[1]) {
+                document.getElementById("wifi-sn").value = snMatch[1];
+              }
+
+              alert("Extracción completada. Por favor, revisa los datos extraídos.");
+            } catch (error) {
+              console.error("Error OCR:", error);
+              alert("Error al extraer datos de la imagen.");
+            } finally {
+              btn.innerHTML = originalText;
+              btn.disabled = false;
+            }
+          }
         };
         reader.readAsDataURL(file);
+      }
+
+      function actualizarTamanoSimbolosWifi() {
+        const size = document.getElementById("wifi-symbol-size").value;
+        tempWifiData.symbolSize = size;
+        dibujarSimbolosWifiActuales();
       }
 
       function dibujarSimbolosWifiActuales() {
@@ -4725,10 +4779,12 @@
           }
         }
         
+        const size = tempWifiData.symbolSize || 32;
+        
         tempWifiData.puntosMapa.forEach(p => {
           const sim = document.createElement("div");
           sim.className = "wifi-simbolo-actual";
-          sim.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 0px 3px white);"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>';
+          sim.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 0px 3px white);"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>`;
           sim.style.position = "absolute";
           sim.style.left = p.x + "%";
           sim.style.top = p.y + "%";
@@ -4761,6 +4817,8 @@
         btnEdit.style.display = isWifiMapaEditMode ? "none" : "block";
         btnSave.style.display = isWifiMapaEditMode ? "block" : "none";
         img.style.cursor = isWifiMapaEditMode ? "crosshair" : "default";
+
+        document.getElementById("wifi-symbol-size").value = tempWifiData.symbolSize || 32;
 
         if (tempWifiData.mapaWifi) {
           img.src = tempWifiData.mapaWifi;
@@ -4856,13 +4914,20 @@
       }
 
       function guardarWifi() {
-        const e = dbEdificios[currentVerEdificioIndex];
+        const ediIndex = document.getElementById("wifi-edificio").value;
+        if (ediIndex === "") {
+          showCustomModal({ message: "Por favor, seleccione un edificio para guardar el Wifi." });
+          return;
+        }
+        const e = dbEdificios[ediIndex];
         if (!e.wifis) e.wifis = [];
         
         tempWifiData.planta = document.getElementById("wifi-planta").value;
         tempWifiData.nombre = document.getElementById("wifi-nombre").value;
+        tempWifiData.ci = document.getElementById("wifi-ci").value;
+        tempWifiData.sn = document.getElementById("wifi-sn").value;
         tempWifiData.comentarios = document.getElementById("wifi-comentarios").value;
-        
+
         if (currentWifiIndex !== null) {
           e.wifis[currentWifiIndex] = tempWifiData;
         } else {
@@ -4871,7 +4936,12 @@
         
         saveToDB("wikiTegralEdificios", dbEdificios);
         cerrarModalWifi();
-        renderWifis();
+        
+        if (document.getElementById("view-wifis").classList.contains("active")) {
+          renderWifis();
+        } else if (document.getElementById("view-wifis-global").classList.contains("active")) {
+          renderWifisGlobal();
+        }
       }
 
       function guardarWifiYVolver() {
