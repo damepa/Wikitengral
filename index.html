@@ -4728,10 +4728,8 @@
 
         if (currentVerEdificioIndex !== null) {
           select.value = currentVerEdificioIndex;
-          select.disabled = true;
-        } else {
-          select.disabled = false;
         }
+        select.disabled = false;
         
         if (index !== null) {
           document.getElementById("wifi-modal-title").innerText = "Editar Wifi";
@@ -4955,10 +4953,24 @@
         const planos = dbDocs["Documentos-Planos y Esquemas"] || [];
         const plano = planos[index];
         if (plano && plano.dataUrl) {
-          if (plano.dataUrl.startsWith("data:application/pdf")) {
+          const isPdf = (plano.type && plano.type.toLowerCase() === "pdf") || plano.dataUrl.startsWith("data:application/pdf");
+          if (isPdf) {
             showCustomModal({ message: "Procesando PDF, por favor espera..." });
             try {
-              const pdf = await pdfjsLib.getDocument(plano.dataUrl).promise;
+              let pdfSource = plano.dataUrl;
+              if (plano.dataUrl.startsWith("data:application/pdf;base64,")) {
+                const base64Data = plano.dataUrl.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+                pdfSource = bytes;
+              }
+              
+              const loadingTask = pdfjsLib.getDocument(pdfSource);
+              const pdf = await loadingTask.promise;
               const page = await pdf.getPage(1);
               const viewport = page.getViewport({ scale: 1.5 });
               const canvas = document.createElement("canvas");
@@ -5031,26 +5043,30 @@
         const file = event.target.files[0];
         if (!file) return;
         
-        if (file.type === "application/pdf") {
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        if (isPdf) {
           showCustomModal({ message: "Procesando PDF, por favor espera..." });
           try {
-            const fileReader = new FileReader();
-            fileReader.onload = async function() {
-              const typedarray = new Uint8Array(this.result);
-              const pdf = await pdfjsLib.getDocument(typedarray).promise;
-              const page = await pdf.getPage(1);
-              const viewport = page.getViewport({ scale: 1.5 });
-              const canvas = document.createElement("canvas");
-              const context = canvas.getContext("2d");
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-              await page.render({ canvasContext: context, viewport: viewport }).promise;
-              
-              tempWifiData.mapaWifi = canvas.toDataURL("image/jpeg", 0.8);
-              abrirEditorMapaWifi();
-              document.getElementById("custom-modal").classList.add("hidden");
-            };
-            fileReader.readAsArrayBuffer(file);
+            const arrayBuffer = await new Promise((resolve, reject) => {
+              const fileReader = new FileReader();
+              fileReader.onload = () => resolve(fileReader.result);
+              fileReader.onerror = reject;
+              fileReader.readAsArrayBuffer(file);
+            });
+            
+            const typedarray = new Uint8Array(arrayBuffer);
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            tempWifiData.mapaWifi = canvas.toDataURL("image/jpeg", 0.8);
+            abrirEditorMapaWifi();
+            document.getElementById("custom-modal").classList.add("hidden");
           } catch (err) {
             console.error(err);
             document.getElementById("custom-modal").classList.add("hidden");
@@ -5098,8 +5114,8 @@
       }
 
       function guardarWifi() {
-        const ediIndex = document.getElementById("wifi-edificio").value;
-        if (ediIndex === "") {
+        const ediIndex = parseInt(document.getElementById("wifi-edificio").value);
+        if (isNaN(ediIndex)) {
           showCustomModal({ message: "Por favor, seleccione un edificio para guardar el Wifi." });
           return;
         }
@@ -5113,7 +5129,12 @@
         tempWifiData.comentarios = document.getElementById("wifi-comentarios").value;
 
         if (currentWifiIndex !== null) {
-          e.wifis[currentWifiIndex] = tempWifiData;
+          if (currentVerEdificioIndex !== null && ediIndex !== currentVerEdificioIndex) {
+            dbEdificios[currentVerEdificioIndex].wifis.splice(currentWifiIndex, 1);
+            e.wifis.push(tempWifiData);
+          } else {
+            e.wifis[currentWifiIndex] = tempWifiData;
+          }
         } else {
           e.wifis.push(tempWifiData);
         }
