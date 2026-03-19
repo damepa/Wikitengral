@@ -152,12 +152,14 @@ async function processDataUrls(data: any): Promise<any> {
               const filename = `${crypto.randomUUID()}.${ext}`;
               
               // Upload to MinIO
+              console.log(`Uploading file to MinIO: ${filename} (${mimeType})`);
               await minioClient.putObject(bucketName, filename, buffer, buffer.length, {
                 'Content-Type': mimeType
               });
               
               // Replace dataUrl with the API endpoint to fetch the file
               data[key] = `/api/files/${filename}`;
+              console.log(`Replaced dataUrl with: ${data[key]}`);
             }
           }
         } catch (err) {
