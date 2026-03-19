@@ -4928,7 +4928,7 @@
       function abrirSelectorPlanosWifi() {
         const list = document.getElementById("wifi-planos-list");
         list.innerHTML = "";
-        const planos = dbDocs["Planos y Esquemas"] || [];
+        const planos = dbDocs["Documentos-Planos y Esquemas"] || [];
         
         if (planos.length === 0) {
           list.innerHTML = "<p style='text-align:center; color:#666;'>No hay planos disponibles en la sección Documentos.</p>";
@@ -4951,13 +4951,36 @@
         document.getElementById("modal-wifi-selector-planos").classList.add("hidden");
       }
 
-      function seleccionarPlanoWifi(index) {
-        const planos = dbDocs["Planos y Esquemas"] || [];
+      async function seleccionarPlanoWifi(index) {
+        const planos = dbDocs["Documentos-Planos y Esquemas"] || [];
         const plano = planos[index];
         if (plano && plano.dataUrl) {
-          tempWifiData.mapaWifi = plano.dataUrl;
-          abrirEditorMapaWifi();
-          cerrarSelectorPlanosWifi();
+          if (plano.dataUrl.startsWith("data:application/pdf")) {
+            showCustomModal({ message: "Procesando PDF, por favor espera..." });
+            try {
+              const pdf = await pdfjsLib.getDocument(plano.dataUrl).promise;
+              const page = await pdf.getPage(1);
+              const viewport = page.getViewport({ scale: 1.5 });
+              const canvas = document.createElement("canvas");
+              const context = canvas.getContext("2d");
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              await page.render({ canvasContext: context, viewport: viewport }).promise;
+              
+              tempWifiData.mapaWifi = canvas.toDataURL("image/jpeg", 0.8);
+              abrirEditorMapaWifi();
+              cerrarSelectorPlanosWifi();
+              document.getElementById("custom-modal").classList.add("hidden");
+            } catch (err) {
+              console.error(err);
+              document.getElementById("custom-modal").classList.add("hidden");
+              showCustomModal({ message: "Error al procesar el PDF." });
+            }
+          } else {
+            tempWifiData.mapaWifi = plano.dataUrl;
+            abrirEditorMapaWifi();
+            cerrarSelectorPlanosWifi();
+          }
         }
       }
 
