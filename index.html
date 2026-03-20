@@ -816,6 +816,10 @@
     </script>
   </head>
   <body>
+    <!-- Offline Indicator -->
+    <div id="offline-indicator" style="display: none; background-color: #e74c3c; color: white; text-align: center; padding: 5px; font-size: 0.9rem; font-weight: bold; position: sticky; top: 0; z-index: 9999;">
+      ⚠️ Estás en Modo Offline. Los cambios se guardarán localmente y se sincronizarán al recuperar la conexión.
+    </div>
     <header id="main-header">
       <div class="header-top">
         <h1 onclick="goHome()">WikiTegral</h1>
@@ -865,8 +869,8 @@
             📁 Archivo ▼
           </button>
           <div id="file-dropdown-menu" class="dropdown-menu hidden-el">
-            <button onclick="openGlobalImportModal(); toggleHeaderDropdown('file-dropdown-menu', event);">📥 Importar Archivo</button>
-            <button onclick="openGlobalExportSelect(); toggleHeaderDropdown('file-dropdown-menu', event);">📤 Exportar Archivo</button>
+            <button id="btn-header-import" onclick="openGlobalImportModal(); toggleHeaderDropdown('file-dropdown-menu', event);">📥 Importar Archivo</button>
+            <button id="btn-header-export" onclick="openGlobalExportSelect(); toggleHeaderDropdown('file-dropdown-menu', event);">📤 Exportar Archivo</button>
             <button onclick="openGlobalSendSelect(); toggleHeaderDropdown('file-dropdown-menu', event);">✉️ Enviar</button>
             <button onclick="showStatistics(); toggleHeaderDropdown('file-dropdown-menu', event);">📊 Estadísticas</button>
           </div>
@@ -928,9 +932,10 @@
             ⚙️ Configurar ▼
           </button>
           <div id="config-dropdown-menu" class="dropdown-menu hidden-el">
-            <button onclick="exportBackup(); toggleHeaderDropdown('config-dropdown-menu', event);">💾 Crear Backup</button>
-            <button onclick="triggerRestoreBackup(); toggleHeaderDropdown('config-dropdown-menu', event);">🔄 Restaurar Backup</button>
-            <button onclick="showSecuritySettings(); toggleHeaderDropdown('config-dropdown-menu', event);" style="color: #e74c3c">🔐 Seguridad</button>
+            <button id="btn-crear-backup" onclick="exportBackup(); toggleHeaderDropdown('config-dropdown-menu', event);">💾 Crear Backup</button>
+            <button id="btn-restaurar-backup" onclick="triggerRestoreBackup(); toggleHeaderDropdown('config-dropdown-menu', event);">🔄 Restaurar Backup</button>
+            <button id="btn-seguridad" onclick="showSecuritySettings(); toggleHeaderDropdown('config-dropdown-menu', event);" style="color: #e74c3c">🔐 Seguridad</button>
+            <button onclick="logout(); toggleHeaderDropdown('config-dropdown-menu', event);" style="color: #34495e; border-top: 1px solid #eee;">🚪 Cerrar Sesión</button>
           </div>
         </div>
         
@@ -1088,7 +1093,7 @@
           </div>
 
           <div class="form-group">
-            <label for="security-pin-value">Establece tu PIN de acceso:</label>
+            <label for="security-pin-value">Contraseña de Administrador:</label>
             <input
               type="password"
               id="security-pin-value"
@@ -1098,8 +1103,21 @@
           </div>
 
           <div class="form-group" style="margin-top: 10px">
+            <label for="security-tech-pin-value">Contraseña de Técnico (Opcional):</label>
+            <input
+              type="password"
+              id="security-tech-pin-value"
+              class="form-control"
+              placeholder="Ej: 0000"
+            />
+            <p style="margin: 5px 0 0; font-size: 0.85rem; color: #666">
+              Los técnicos pueden crear y editar, pero no pueden borrar ni gestionar copias de seguridad.
+            </p>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px">
             <label for="security-dni-value"
-              >Tu DNI (Necesario para recuperar el PIN):</label
+              >Tu DNI (Necesario para recuperar contraseña):</label
             >
             <input
               type="text"
@@ -1338,14 +1356,16 @@
           </button>
           <button class="action-btn" onclick="addEdificio()">➕ Añadir</button>
           <button
+            id="btn-view-edificios-export-json"
             class="action-btn"
             style="background-color: #2b579a"
             onclick="exportarEdificios()"
           >
             📤 Exportar Listado
           </button>
-          <button class="action-btn" style="background-color: #e74c3c;" onclick="exportarEdificiosPDF()">📄 Exportar PDF</button>
+          <button id="btn-view-edificios-export-pdf" class="action-btn" style="background-color: #e74c3c;" onclick="exportarEdificiosPDF()">📄 Exportar PDF</button>
           <button
+            id="btn-view-edificios-import-list"
             class="action-btn"
             style="background-color: #217346"
             onclick="document.getElementById('import-edificios-upload').click()"
@@ -1353,6 +1373,7 @@
             📥 Importar Listado
           </button>
           <button
+            id="btn-view-edificios-import-single"
             class="action-btn"
             style="background-color: #16a085"
             onclick="document.getElementById('import-edificios-upload').click()"
@@ -1406,8 +1427,8 @@
         <div class="action-bar" style="flex-wrap: wrap">
           <button class="action-btn home" onclick="goHome()">🏠 Menú Principal</button>
           <button class="action-btn" onclick="openCreateEquipoModal()">➕ Crear</button>
-          <button class="action-btn" style="background-color: #217346" onclick="document.getElementById('import-equipos-upload').click()">📥 Importar</button>
-          <button class="action-btn" style="background-color: #2b579a" onclick="exportarEquipos()">📤 Exportar</button>
+          <button id="btn-view-equipos-import" class="action-btn" style="background-color: #217346" onclick="document.getElementById('import-equipos-upload').click()">📥 Importar</button>
+          <button id="btn-view-equipos-export" class="action-btn" style="background-color: #2b579a" onclick="exportarEquipos()">📤 Exportar</button>
           <button class="action-btn" style="background-color: #e74c3c;" onclick="generarListadoEquipos()">📄 Generar Listado</button>
           <input type="file" id="import-equipos-upload" class="hidden-input" accept=".json" onchange="importarEquipos(event)" />
         </div>
@@ -1871,7 +1892,7 @@
             </div>
             <div id="edi-mapa-preview-container" style="margin-top: 10px; display: none;">
               <img id="edi-mapa-preview-img" style="max-width: 200px; border: 1px solid #ccc; border-radius: 5px;" />
-              <button class="action-btn danger" style="padding: 5px 10px; margin-left: 10px;" onclick="eliminarEdificioMapa()">🗑️</button>
+              <button id="btn-eliminar-mapa" class="action-btn danger" style="padding: 5px 10px; margin-left: 10px;" onclick="eliminarEdificioMapa()">🗑️</button>
             </div>
           </div>
         </div>
@@ -2587,15 +2608,22 @@
       let dbSecurity = {
         pinEnabled: false,
         pin: "",
+        techPin: "",
         dni: "",
       };
       let isAuthorized = false;
+      let currentRole = 'admin'; // 'admin' or 'tecnico'
 
 
       // --- API WRAPPER ---
 
       async function getFromDB(key) {
         try {
+          if (!navigator.onLine) {
+            console.log(`Offline: Loading ${key} from localStorage`);
+            return JSON.parse(localStorage.getItem(key));
+          }
+
           let url = "";
           if (key === "wikiTegralDocs") url = "/api/docs";
           else if (key === "wikiTegralEdificios") url = "/api/buildings";
@@ -2604,15 +2632,29 @@
           
           const response = await fetch(url);
           if (!response.ok) throw new Error("Network response was not ok");
-          return await response.json();
+          const data = await response.json();
+          
+          // Save a backup to localStorage for offline use
+          localStorage.setItem(key, JSON.stringify(data));
+          return data;
         } catch (e) {
-          console.error("API Get Error:", e);
-          return null;
+          console.error("API Get Error, falling back to localStorage:", e);
+          return JSON.parse(localStorage.getItem(key));
         }
       }
 
       async function saveToDB(key, value) {
         try {
+          // Always save to localStorage first so we don't lose data
+          localStorage.setItem(key, JSON.stringify(value));
+          
+          if (!navigator.onLine) {
+            console.log(`Offline: Saved ${key} locally.`);
+            // Mark as pending sync
+            localStorage.setItem("wikiTegralPendingSync", "true");
+            return { success: true, offline: true };
+          }
+
           console.log(`Saving ${key} to DB...`, value);
           let url = "";
           if (key === "wikiTegralDocs") url = "/api/docs/sync";
@@ -2630,11 +2672,83 @@
           console.log(`Save ${key} result:`, result);
           return result;
         } catch (e) {
-          console.error("API Save Error:", e);
+          console.error("API Save Error, saved locally:", e);
+          localStorage.setItem("wikiTegralPendingSync", "true");
+          return { success: true, offline: true };
         }
       }
 
+      // Offline/Online event listeners
+      window.addEventListener('online', async () => {
+        document.getElementById('offline-indicator').style.display = 'none';
+        console.log("Back online! Syncing data...");
+        if (localStorage.getItem("wikiTegralPendingSync") === "true") {
+          showCustomModal({ message: "Conexión recuperada. Sincronizando datos..." });
+          
+          // Sync all data and update local state with processed data (e.g., MinIO URLs)
+          if (localStorage.getItem("wikiTegralDocs")) {
+            const res = await saveToDB("wikiTegralDocs", JSON.parse(localStorage.getItem("wikiTegralDocs")));
+            if (res && res.data) {
+              dbDocs = res.data;
+              localStorage.setItem("wikiTegralDocs", JSON.stringify(dbDocs));
+            }
+          }
+          if (localStorage.getItem("wikiTegralEdificios")) {
+            const res = await saveToDB("wikiTegralEdificios", JSON.parse(localStorage.getItem("wikiTegralEdificios")));
+            if (res && res.data) {
+              dbEdificios = res.data;
+              localStorage.setItem("wikiTegralEdificios", JSON.stringify(dbEdificios));
+            }
+          }
+          if (localStorage.getItem("wikiTegralEquipos")) {
+            const res = await saveToDB("wikiTegralEquipos", JSON.parse(localStorage.getItem("wikiTegralEquipos")));
+            if (res && res.data) {
+              dbEquipos = res.data;
+              localStorage.setItem("wikiTegralEquipos", JSON.stringify(dbEquipos));
+            }
+          }
+          if (localStorage.getItem("wikiTegralSecurity")) {
+            const res = await saveToDB("wikiTegralSecurity", JSON.parse(localStorage.getItem("wikiTegralSecurity")));
+            if (res && res.data) {
+              dbSecurity = res.data;
+              localStorage.setItem("wikiTegralSecurity", JSON.stringify(dbSecurity));
+            }
+          }
+          
+          localStorage.removeItem("wikiTegralPendingSync");
+          showCustomModal({ message: "Sincronización completada." });
+          
+          // Re-render current view if needed
+          if (document.getElementById("view-docs").classList.contains("active")) renderDocsTree();
+          if (document.getElementById("view-edificios").classList.contains("active")) renderEdificiosTable();
+          if (document.getElementById("view-equipos").classList.contains("active")) renderEquiposTable();
+          if (document.getElementById("view-wifis-global").classList.contains("active")) renderWifisGlobal();
+        }
+      });
+
+      window.addEventListener('offline', () => {
+        document.getElementById('offline-indicator').style.display = 'block';
+        console.log("Went offline.");
+      });
+
+      // Initial check
+      window.addEventListener('load', () => {
+        if (!navigator.onLine) {
+          document.getElementById('offline-indicator').style.display = 'block';
+        }
+      });
+
       async function loadAppData() {
+        // If we have pending syncs and we are online, sync first
+        if (navigator.onLine && localStorage.getItem("wikiTegralPendingSync") === "true") {
+          console.log("Startup: Syncing pending offline data...");
+          if (localStorage.getItem("wikiTegralDocs")) await saveToDB("wikiTegralDocs", JSON.parse(localStorage.getItem("wikiTegralDocs")));
+          if (localStorage.getItem("wikiTegralEdificios")) await saveToDB("wikiTegralEdificios", JSON.parse(localStorage.getItem("wikiTegralEdificios")));
+          if (localStorage.getItem("wikiTegralEquipos")) await saveToDB("wikiTegralEquipos", JSON.parse(localStorage.getItem("wikiTegralEquipos")));
+          if (localStorage.getItem("wikiTegralSecurity")) await saveToDB("wikiTegralSecurity", JSON.parse(localStorage.getItem("wikiTegralSecurity")));
+          localStorage.removeItem("wikiTegralPendingSync");
+        }
+
         let docs = await getFromDB("wikiTegralDocs");
         let edificios = await getFromDB("wikiTegralEdificios");
         let equipos = await getFromDB("wikiTegralEquipos");
@@ -2671,10 +2785,20 @@
         }
 
         if (dbSecurity.pinEnabled) {
-          document.getElementById("main-header").style.display = "none";
-          showView("view-login");
+          const savedRole = sessionStorage.getItem('currentRole');
+          if (savedRole) {
+            isAuthorized = true;
+            currentRole = savedRole;
+            applyRoleRestrictions();
+            goHome();
+          } else {
+            document.getElementById("main-header").style.display = "none";
+            showView("view-login");
+          }
         } else {
           isAuthorized = true;
+          currentRole = 'admin'; // Default to admin if no security
+          applyRoleRestrictions();
           goHome();
         }
       }
@@ -2683,15 +2807,64 @@
         loadAppData();
       });
 
+      function applyRoleRestrictions() {
+        const btnEliminarMapa = document.getElementById("btn-eliminar-mapa");
+        if (btnEliminarMapa) {
+          btnEliminarMapa.style.display = currentRole === 'admin' ? 'inline-block' : 'none';
+        }
+        const btnSeguridad = document.getElementById("btn-seguridad");
+        if (btnSeguridad) {
+          btnSeguridad.style.display = currentRole === 'admin' ? 'block' : 'none';
+        }
+        const btnCrearBackup = document.getElementById("btn-crear-backup");
+        if (btnCrearBackup) {
+          btnCrearBackup.style.display = currentRole === 'admin' ? 'block' : 'none';
+        }
+        const btnRestaurarBackup = document.getElementById("btn-restaurar-backup");
+        if (btnRestaurarBackup) {
+          btnRestaurarBackup.style.display = currentRole === 'admin' ? 'block' : 'none';
+        }
+
+        // Nuevos botones restringidos
+        const restrictedButtons = [
+          'btn-header-import', 'btn-header-export',
+          'btn-view-edificios-import-list', 'btn-view-edificios-import-single',
+          'btn-view-edificios-export-json', 'btn-view-edificios-export-pdf',
+          'btn-view-equipos-import', 'btn-view-equipos-export'
+        ];
+
+        restrictedButtons.forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) {
+            btn.style.display = currentRole === 'admin' ? 'block' : 'none';
+            // Para botones en action-bar que suelen ser inline-block
+            if (currentRole === 'admin' && btn.classList.contains('action-btn')) {
+              btn.style.display = 'inline-block';
+            }
+          }
+        });
+      }
+
       function verifyLogin() {
         const input = document.getElementById("login-pin-input").value;
         if (input === dbSecurity.pin) {
           isAuthorized = true;
+          currentRole = 'admin';
+          sessionStorage.setItem('currentRole', currentRole);
+          applyRoleRestrictions();
+          document.getElementById("main-header").style.display = "flex";
+          document.getElementById("login-pin-input").value = ""; 
+          showView("view-home");
+        } else if (dbSecurity.techPin && input === dbSecurity.techPin) {
+          isAuthorized = true;
+          currentRole = 'tecnico';
+          sessionStorage.setItem('currentRole', currentRole);
+          applyRoleRestrictions();
           document.getElementById("main-header").style.display = "flex";
           document.getElementById("login-pin-input").value = ""; 
           showView("view-home");
         } else {
-          showCustomModal({ message: "PIN Incorrecto. Inténtalo de nuevo." });
+          showCustomModal({ message: "Contraseña Incorrecta. Inténtalo de nuevo." });
           document.getElementById("login-pin-input").value = "";
         }
       }
@@ -2707,6 +2880,14 @@
         document.getElementById("recovery-dni-input").value = "";
       }
 
+      function logout() {
+        isAuthorized = false;
+        currentRole = 'admin';
+        sessionStorage.removeItem('currentRole');
+        document.getElementById("main-header").style.display = "none";
+        showView("view-login");
+      }
+
       function verifyRecovery() {
         const input = document
           .getElementById("recovery-dni-input")
@@ -2716,11 +2897,14 @@
           input !== ""
         ) {
           isAuthorized = true;
+          currentRole = 'admin';
+          sessionStorage.setItem('currentRole', currentRole);
+          applyRoleRestrictions();
           document.getElementById("main-header").style.display = "flex";
           showView("view-home");
           showCustomModal({
             title: "Acceso Recuperado",
-            message: `Has entrado mediante DNI.\n\nRecuerda, tu PIN es: ${dbSecurity.pin}`,
+            message: `Has entrado mediante DNI.\n\nRecuerda, tu Contraseña de Administrador es: ${dbSecurity.pin}`,
           });
           hideRecovery();
         } else {
@@ -2731,10 +2915,16 @@
       }
 
       function showSecuritySettings() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para acceder a la configuración de seguridad." });
+          return;
+        }
         document.getElementById("security-pin-toggle").checked =
           dbSecurity.pinEnabled;
         document.getElementById("security-pin-value").value =
           dbSecurity.pin || "";
+        document.getElementById("security-tech-pin-value").value =
+          dbSecurity.techPin || "";
         document.getElementById("security-dni-value").value =
           dbSecurity.dni || "";
         showView("view-security");
@@ -2743,12 +2933,13 @@
       function saveSecuritySettings() {
         const enabled = document.getElementById("security-pin-toggle").checked;
         const pin = document.getElementById("security-pin-value").value.trim();
+        const techPin = document.getElementById("security-tech-pin-value").value.trim();
         const dni = document.getElementById("security-dni-value").value.trim();
 
         if (enabled && (pin === "" || dni === "")) {
           showCustomModal({
             message:
-              "Para activar la seguridad debes establecer un PIN y un DNI.",
+              "Para activar la seguridad debes establecer una Contraseña de Administrador y un DNI.",
           });
           return;
         }
@@ -2756,9 +2947,14 @@
         dbSecurity = {
           pinEnabled: enabled,
           pin: pin,
+          techPin: techPin,
           dni: dni,
         };
         saveToDB("wikiTegralSecurity", dbSecurity);
+
+        if (!enabled) {
+          sessionStorage.removeItem('currentRole');
+        }
 
         goHome();
         showCustomModal({
@@ -2840,6 +3036,10 @@
       }
 
       async function exportBackup() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para crear copias de seguridad." });
+          return;
+        }
         const data = JSON.stringify(
           { docs: dbDocs, edificios: dbEdificios, equipos: dbEquipos, security: dbSecurity },
           null,
@@ -2872,9 +3072,17 @@
       }
 
       function triggerRestoreBackup() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para restaurar copias de seguridad." });
+          return;
+        }
         document.getElementById("backup-file-upload").click();
       }
       function restoreBackup(e) {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "Acceso denegado. Solo administradores pueden restaurar backups." });
+          return;
+        }
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -3221,7 +3429,7 @@
                                 <button onclick="renameDocument('${key}', ${idx})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #3498db;" title="Renombrar">✏️</button>
                                 <button onclick="openSendModal('${key}', ${idx})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #f39c12;" title="Enviar">✉️</button>
                                 <button onclick="downloadDocument('${key}', ${idx})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #27ae60;" title="Descargar">📥</button>
-                                <button onclick="deleteDocument('${key}', ${idx})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>
+                                ${currentRole === 'admin' ? `<button onclick="deleteDocument('${key}', ${idx})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>` : ''}
                             </div>
                         </td>
                     </tr>`;
@@ -3256,7 +3464,7 @@
                                 <button onclick="renameDocument('${key}', ${idx})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #3498db;" title="Renombrar">✏️</button>
                                 <button onclick="openSendModal('${key}', ${idx})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #f39c12;" title="Enviar">✉️</button>
                                 <button onclick="downloadDocument('${key}', ${idx})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #27ae60;" title="Descargar">📥</button>
-                                <button onclick="deleteDocument('${key}', ${idx})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>
+                                ${currentRole === 'admin' ? `<button onclick="deleteDocument('${key}', ${idx})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>` : ''}
                             </div>
                         </td>
                     </tr>`;
@@ -3516,7 +3724,7 @@
               <td data-label="Acciones">
                 <div style="display: flex; gap: 5px;">
                   <button class="action-btn" style="background-color: #3498db; padding: 5px 10px;" onclick="openCreateEquipoModal(${originalIdx})">✏️</button>
-                  <button class="action-btn danger" style="padding: 5px 10px;" onclick="eliminarEquipo(${originalIdx})">🗑️</button>
+                  ${currentRole === 'admin' ? `<button class="action-btn danger" style="padding: 5px 10px;" onclick="eliminarEquipo(${originalIdx})">🗑️</button>` : ''}
                 </div>
               </td>
             </tr>
@@ -3544,6 +3752,10 @@
       }
 
       async function eliminarEquipo(index) {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para eliminar equipos." });
+          return;
+        }
         showCustomModal({
           title: "Confirmar eliminación",
           message: "¿Estás seguro de que deseas eliminar este equipo?",
@@ -3557,6 +3769,10 @@
       }
 
       async function exportarEquipos() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "Acceso denegado. Solo administradores pueden exportar datos." });
+          return;
+        }
         const today = new Date();
         const dateStr = today.toISOString().slice(0, 10);
         const timeStr = today.toTimeString().slice(0, 5).replace(':', '-');
@@ -3768,7 +3984,7 @@
                         <button onclick="renameDocument('${key}', ${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #3498db;" title="Renombrar">✏️</button>
                         <button onclick="openSendModal('${key}', ${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #f39c12;" title="Enviar">✉️</button>
                         <button onclick="downloadDocument('${key}', ${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #27ae60;" title="Descargar">📥</button>
-                        <button onclick="deleteDocument('${key}', ${i})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>
+                        ${currentRole === 'admin' ? `<button onclick="deleteDocument('${key}', ${i})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>` : ''}
                     </div>
                 </td>
             </tr>`),
@@ -3880,6 +4096,10 @@
       }
 
       function deleteDocument(k, i) {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para eliminar documentos." });
+          return;
+        }
         showCustomModal({
           type: "confirm",
           message: "¿Borrar este documento permanentemente?",
@@ -4343,7 +4563,7 @@
                     <button onclick="verFichaWifi(${eIndex}, ${wIndex})" class="action-btn" style="padding: 5px 10px; font-size: 1rem; background-color: #8e44ad;" title="Ver Ficha Wifi">📶</button>
                     <button onclick="abrirGaleriaWifi(${eIndex}, ${wIndex})" class="action-btn" style="padding: 5px 10px; font-size: 1rem; background-color: #3498db;" title="Fotos">📸</button>
                     <button onclick="currentVerEdificioIndex = ${eIndex}; document.getElementById('wifi-edificio').value = ${eIndex}; abrirModalWifi(${wIndex});" class="action-btn" style="padding: 5px 10px; font-size: 1rem;" title="Editar Wifi">✏️</button>
-                    <button onclick="eliminarWifi(${wIndex}, ${eIndex})" class="action-btn danger" style="padding: 5px 10px; font-size: 1rem;" title="Eliminar Wifi">🗑️</button>
+                    ${currentRole === 'admin' ? `<button onclick="eliminarWifi(${wIndex}, ${eIndex})" class="action-btn danger" style="padding: 5px 10px; font-size: 1rem;" title="Eliminar Wifi">🗑️</button>` : ''}
                     <button onclick="previousViewBeforeWifis = 'view-wifis-global'; verEdificio(${eIndex}); abrirWifisEdificio();" class="action-btn" style="padding: 5px 10px; font-size: 1rem;" title="Ver en Edificio">👁️</button>
                   </div>
                 </td>
@@ -4371,6 +4591,10 @@
       }
 
       async function exportarEdificios() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "Acceso denegado. Solo administradores pueden exportar datos." });
+          return;
+        }
         const dataStr = JSON.stringify(dbEdificios, null, 2);
         const today = new Date();
         const dateStr = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${today.getFullYear()}`;
@@ -4405,6 +4629,10 @@
       }
 
       async function exportarEdificiosPDF() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "Acceso denegado. Solo administradores pueden exportar datos." });
+          return;
+        }
         const container = document.getElementById('edificios-pdf-export');
         const tbody = document.getElementById('edificios-pdf-body');
         
@@ -4458,6 +4686,10 @@
       }
 
       async function exportarEdificioIndividual(index) {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "Acceso denegado. Solo administradores pueden exportar datos." });
+          return;
+        }
         const edificio = dbEdificios[index];
         // Lo guardamos como Array para que la misma función de importación lo lea sin problemas
         const dataStr = JSON.stringify([edificio], null, 2); 
@@ -4561,7 +4793,7 @@
                         <button onclick="openSendModalEdificio(${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #f39c12;" title="Enviar">✉️</button>
                         <button onclick="exportarEdificioIndividual(${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #2b579a;" title="Exportar Solo Este Edificio">📤</button>
                         <button onclick="editEdificio(${i})" class="action-btn secondary" style="padding: 10px 15px; font-size: 1.3rem;" title="Editar">✏️</button>
-                        <button onclick="deleteEdificio(${i})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>
+                        ${currentRole === 'admin' ? `<button onclick="deleteEdificio(${i})" class="action-btn danger" style="padding: 10px 15px; font-size: 1.3rem;" title="Eliminar">🗑️</button>` : ''}
                     </div>
                 </td>
             </tr>`),
@@ -4740,6 +4972,10 @@
       }
 
       function deleteEdificio(i) {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para eliminar edificios." });
+          return;
+        }
         showCustomModal({
           title: "Eliminar Edificio",
           message:
@@ -4841,7 +5077,7 @@
                 <button class="action-btn" onclick="verFichaWifi(currentVerEdificioIndex, ${index})" style="padding: 5px 10px; font-size: 0.9rem; background-color: #8e44ad;" title="Ver Ficha">📶</button>
                 <button class="action-btn" onclick="abrirGaleriaWifi(${currentVerEdificioIndex}, ${index})" style="padding: 5px 10px; font-size: 0.9rem; background-color: #3498db;" title="Fotos">📸</button>
                 <button class="action-btn" onclick="abrirModalWifi(${index})" style="padding: 5px 10px; font-size: 0.9rem;">✏️</button>
-                <button class="action-btn danger" onclick="eliminarWifi(${index})" style="padding: 5px 10px; font-size: 0.9rem;">🗑️</button>
+                ${currentRole === 'admin' ? `<button class="action-btn danger" onclick="eliminarWifi(${index})" style="padding: 5px 10px; font-size: 0.9rem;">🗑️</button>` : ''}
               </div>
             </td>
           `;
@@ -5303,7 +5539,9 @@
           };
 
           wrapper.appendChild(img);
-          wrapper.appendChild(delBtn);
+          if (currentRole === 'admin') {
+            wrapper.appendChild(delBtn);
+          }
           container.appendChild(wrapper);
         });
 
@@ -5450,6 +5688,10 @@
       }
 
       function eliminarWifi(index, eIndex = null) {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para eliminar redes Wifi." });
+          return;
+        }
         const edificioIndex = eIndex !== null ? eIndex : currentVerEdificioIndex;
         showCustomModal({
           title: "Eliminar Wifi",
@@ -5622,6 +5864,10 @@
       }
 
       function eliminarEdificioMapa() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "No tienes permisos para eliminar el mapa del edificio." });
+          return;
+        }
         currentEdificioMapa = null;
         document.getElementById("edi-mapa-status").innerText = "Sin mapa";
         document.getElementById("edi-mapa-preview-container").style.display = "none";
@@ -5725,24 +5971,26 @@
           }
         };
         
-        const delBtn = document.createElement("button");
-        delBtn.innerText = "❌";
-        delBtn.style.position = "absolute";
-        delBtn.style.top = "5px";
-        delBtn.style.right = "5px";
-        delBtn.style.background = "rgba(255,255,255,0.8)";
-        delBtn.style.border = "none";
-        delBtn.style.borderRadius = "50%";
-        delBtn.style.cursor = "pointer";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          const idx = currentEdificioFotos.indexOf(fileData);
-          if (idx > -1) {
-            currentEdificioFotos.splice(idx, 1);
-            wrapper.remove();
-          }
-        };
-        wrapper.appendChild(delBtn);
+        if (currentRole === 'admin') {
+          const delBtn = document.createElement("button");
+          delBtn.innerText = "❌";
+          delBtn.style.position = "absolute";
+          delBtn.style.top = "5px";
+          delBtn.style.right = "5px";
+          delBtn.style.background = "rgba(255,255,255,0.8)";
+          delBtn.style.border = "none";
+          delBtn.style.borderRadius = "50%";
+          delBtn.style.cursor = "pointer";
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            const idx = currentEdificioFotos.indexOf(fileData);
+            if (idx > -1) {
+              currentEdificioFotos.splice(idx, 1);
+              wrapper.remove();
+            }
+          };
+          wrapper.appendChild(delBtn);
+        }
 
         container.appendChild(wrapper);
       }
@@ -6086,6 +6334,10 @@
       }
 
       function openGlobalImportModal() {
+        if (currentRole !== 'admin') {
+          showCustomModal({ message: "Acceso denegado. Solo administradores pueden importar datos." });
+          return;
+        }
         resetGlobalImportModal();
         document
           .getElementById("global-import-modal")
