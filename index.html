@@ -69,6 +69,24 @@
     </script>
 
     <style>
+      .ocr-input:focus {
+        border-color: #3498db !important;
+        box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+        background-color: #f0f8ff;
+      }
+      .ocr-chip {
+        background: #e0e0e0;
+        padding: 5px 10px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        user-select: none;
+        transition: background 0.2s;
+        color: #333;
+      }
+      .ocr-chip:hover {
+        background: #d0d0d0;
+      }
       :root {
         --primary: #2c3e50;
         --secondary: #3498db;
@@ -1408,6 +1426,7 @@
                 <th>CI</th>
                 <th>Nº U</th>
                 <th>S/N</th>
+                <th>IP</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -1421,15 +1440,19 @@
         <div class="modal-content small">
           <div class="modal-header">
             <h3 id="equipo-modal-title">Crear Registro de Equipo</h3>
-            <button onclick="closeCreateEquipoModal()">❌</button>
+            <button onclick="closeCreateEquipoModal()"><span style="color: white; font-size: 1.2rem;">✕</span></button>
           </div>
           <div class="modal-body" style="padding: 20px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <button class="action-btn" style="background-color: #3498db; width: 100%;" onclick="document.getElementById('equipo-scanner-upload').click()">
+                📷 Scanner (Foto)
+              </button>
+              <input type="file" id="equipo-scanner-upload" class="hidden-input" accept="image/*" capture="environment" onchange="handleEquipoScanner(event)" />
+            </div>
             <div class="form-group">
               <label>Edificio</label>
               <select id="equipo-edificio" class="form-control">
-                <option value="Múltiples III">Múltiples III</option>
-                <option value="Múltiples II">Múltiples II</option>
-                <option value="Múltiples I">Múltiples I</option>
+                <!-- Generado por JS -->
               </select>
             </div>
             <div class="form-group">
@@ -1446,13 +1469,15 @@
             </div>
             <div class="form-group">
               <label>Nº de U</label>
-              <select id="equipo-u" class="form-control">
-                <!-- Generado por JS -->
-              </select>
+              <input type="text" id="equipo-u" class="form-control" placeholder="Ej: 1 o 1-2">
             </div>
             <div class="form-group">
               <label>S/N (Serial Number)</label>
               <input type="text" id="equipo-sn" class="form-control" placeholder="Número de Serie">
+            </div>
+            <div class="form-group">
+              <label>IP</label>
+              <input type="text" id="equipo-ip" class="form-control" placeholder="Ej: 10.14.x.x">
             </div>
             <button class="action-btn" onclick="guardarEquipo()" style="width: 100%; margin-top: 10px;">💾 Guardar</button>
           </div>
@@ -1468,7 +1493,7 @@
             style="background-color: #95a5a6"
             onclick="volverDeWifis()"
           >
-            ⬅️ Volver a Edificio
+            ⬅️ Volver a la pantalla anterior
           </button>
           <button class="action-btn" onclick="abrirModalWifi()">
             ➕ Añadir Wifi
@@ -1673,7 +1698,7 @@
           <button
             class="action-btn"
             style="background-color: #3498db"
-            onclick="abrirWifisEdificio()"
+            onclick="previousViewBeforeWifis = 'view-edificio-ver'; abrirWifisEdificio()"
           >
             📶 Wifi
           </button>
@@ -3023,11 +3048,12 @@
                 <div style="background: #f8f9fa; border-left: 4px solid #27ae60; padding: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                   <div style="font-weight: bold; color: #2c3e50; font-size: 1.1rem; margin-bottom: 5px;">${eq.nombre}</div>
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.9rem; color: #555;">
-                    <div><strong>Edificio:</strong> ${eq.edificio}</div>
-                    <div><strong>Rack:</strong> ${eq.rack}</div>
-                    <div><strong>CI:</strong> ${eq.ci}</div>
-                    <div><strong>Nº U:</strong> ${eq.u}</div>
-                    <div style="grid-column: span 2;"><strong>S/N:</strong> ${eq.sn}</div>
+                    <div><strong>Edificio:</strong> ${eq.edificio || ''}</div>
+                    <div><strong>Rack:</strong> ${eq.rack || ''}</div>
+                    <div><strong>CI:</strong> ${eq.ci || ''}</div>
+                    <div><strong>Nº U:</strong> ${eq.u || ''}</div>
+                    <div><strong>S/N:</strong> ${eq.sn || ''}</div>
+                    <div><strong>IP:</strong> ${eq.ip || ''}</div>
                   </div>
                 </div>
               `).join('')
@@ -3301,34 +3327,38 @@
       function openCreateEquipoModal(index = null) {
         editingEquipoIndex = index;
         const title = document.getElementById('equipo-modal-title');
-        const selectU = document.getElementById('equipo-u');
+        const selectEdificio = document.getElementById('equipo-edificio');
         
-        // Llenar select de U (1-42)
-        selectU.innerHTML = '';
-        for (let i = 1; i <= 42; i++) {
+        // Llenar select de edificios
+        selectEdificio.innerHTML = '';
+        dbEdificios.forEach(e => {
           const opt = document.createElement('option');
-          opt.value = i;
-          opt.textContent = i;
-          selectU.appendChild(opt);
-        }
+          opt.value = e.nombre;
+          opt.textContent = e.nombre;
+          selectEdificio.appendChild(opt);
+        });
 
         if (index !== null) {
           const eq = dbEquipos[index];
           title.textContent = 'Editar Registro de Equipo';
-          document.getElementById('equipo-edificio').value = eq.edificio;
-          document.getElementById('equipo-rack').value = eq.rack;
-          document.getElementById('equipo-nombre').value = eq.nombre;
-          document.getElementById('equipo-ci').value = eq.ci;
-          document.getElementById('equipo-u').value = eq.u;
-          document.getElementById('equipo-sn').value = eq.sn;
+          if (eq.edificio) document.getElementById('equipo-edificio').value = eq.edificio;
+          document.getElementById('equipo-rack').value = eq.rack || '';
+          document.getElementById('equipo-nombre').value = eq.nombre || '';
+          document.getElementById('equipo-ci').value = eq.ci || '';
+          document.getElementById('equipo-u').value = eq.u || '';
+          document.getElementById('equipo-sn').value = eq.sn || '';
+          document.getElementById('equipo-ip').value = eq.ip || '';
         } else {
           title.textContent = 'Crear Registro de Equipo';
-          document.getElementById('equipo-edificio').value = 'Múltiples III';
+          if (dbEdificios.length > 0) {
+            document.getElementById('equipo-edificio').value = dbEdificios[0].nombre;
+          }
           document.getElementById('equipo-rack').value = '';
           document.getElementById('equipo-nombre').value = '';
           document.getElementById('equipo-ci').value = '';
-          document.getElementById('equipo-u').value = '1';
+          document.getElementById('equipo-u').value = '';
           document.getElementById('equipo-sn').value = '';
+          document.getElementById('equipo-ip').value = '';
         }
 
         document.getElementById('create-equipo-modal').classList.remove('hidden');
@@ -3338,6 +3368,106 @@
         document.getElementById('create-equipo-modal').classList.add('hidden');
       }
 
+      let scannerStream = null;
+      let scannerWorker = null;
+
+      let activeOcrInputId = 'ocr-nombre';
+
+      function setOcrActiveInput(id) {
+        activeOcrInputId = id;
+        // Update visual styling
+        document.querySelectorAll('.ocr-input').forEach(el => el.style.borderColor = '#ddd');
+        document.getElementById(id).style.borderColor = '#3498db';
+      }
+
+      function cerrarModalOcrAsignar() {
+        document.getElementById('modal-ocr-asignar').classList.add('hidden');
+      }
+
+      function aplicarDatosOcr() {
+        document.getElementById('equipo-nombre').value = document.getElementById('ocr-nombre').value;
+        document.getElementById('equipo-ci').value = document.getElementById('ocr-ci').value;
+        document.getElementById('equipo-sn').value = document.getElementById('ocr-sn').value;
+        document.getElementById('equipo-ip').value = document.getElementById('ocr-ip').value;
+        cerrarModalOcrAsignar();
+      }
+
+      async function handleEquipoScanner(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        showCustomModal({ message: "Procesando imagen con OCR, por favor espera..." });
+
+        try {
+          if (!scannerWorker) {
+            scannerWorker = await Tesseract.createWorker('spa');
+          }
+          const ret = await scannerWorker.recognize(file);
+          const text = ret.data.text;
+
+          // Clean up and split text into tokens
+          const rawTokens = text.split(/[\s\n/|]+/);
+          const tokens = rawTokens.filter(t => t.trim().length > 2); // filter out very short noise
+
+          // Pre-fill logic (guess)
+          let guessCi = "", guessIp = "", guessSn = "", guessNombre = "";
+          
+          const ciMatch = text.match(/(?:CI[\s:]*)?(1[0-9]{8,12})/i);
+          if (ciMatch && ciMatch[1]) guessCi = ciMatch[1];
+
+          const ipMatch = text.match(/(?:IP[\s:]*)?((?:10|172)\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/i);
+          if (ipMatch && ipMatch[1]) guessIp = ipMatch[1];
+
+          const snMatch = text.match(/(?:S\/N|N\/S|SN)[\s:]*([A-Za-z0-9]+)/i);
+          if (snMatch && snMatch[1]) guessSn = snMatch[1];
+
+          // Guess Nombre (often has hyphens, or is the longest word that isn't CI/IP/SN)
+          const possibleNames = tokens.filter(t => t.includes('-') && t !== guessSn && t !== guessCi && t !== guessIp && !t.includes('Synergy') && !t.includes('Gen10'));
+          if (possibleNames.length > 0) {
+            guessNombre = possibleNames[0];
+          }
+
+          // Populate modal
+          document.getElementById('ocr-nombre').value = guessNombre;
+          document.getElementById('ocr-ci').value = guessCi;
+          document.getElementById('ocr-sn').value = guessSn;
+          document.getElementById('ocr-ip').value = guessIp;
+
+          const chipsContainer = document.getElementById('ocr-chips-container');
+          chipsContainer.innerHTML = '';
+
+          // Also add full lines as chips, sometimes useful
+          const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+          const allChips = [...new Set([...lines, ...tokens])];
+
+          allChips.forEach(token => {
+            const chip = document.createElement('div');
+            chip.className = 'ocr-chip';
+            chip.textContent = token;
+            chip.onclick = () => {
+              if (activeOcrInputId) {
+                document.getElementById(activeOcrInputId).value = token;
+              }
+            };
+            chipsContainer.appendChild(chip);
+          });
+
+          document.getElementById("custom-modal").classList.add("hidden");
+          document.getElementById('modal-ocr-asignar').classList.remove('hidden');
+          
+          // Set initial active input
+          setOcrActiveInput('ocr-nombre');
+          
+          // Reset file input
+          event.target.value = '';
+
+        } catch (err) {
+          console.error(err);
+          document.getElementById("custom-modal").classList.add("hidden");
+          showCustomModal({ message: "Error al procesar la imagen." });
+        }
+      }
+
       async function guardarEquipo() {
         const edificio = document.getElementById('equipo-edificio').value;
         const rack = document.getElementById('equipo-rack').value.trim();
@@ -3345,13 +3475,9 @@
         const ci = document.getElementById('equipo-ci').value.trim();
         const u = document.getElementById('equipo-u').value;
         const sn = document.getElementById('equipo-sn').value.trim();
+        const ip = document.getElementById('equipo-ip').value.trim();
 
-        if (!rack || !nombre || !sn) {
-          showCustomModal({ message: "Por favor, completa los campos obligatorios (Rack, Nombre, S/N)." });
-          return;
-        }
-
-        const equipoData = { edificio, rack, nombre, ci, u, sn };
+        const equipoData = { edificio, rack, nombre, ci, u, sn, ip };
 
         if (editingEquipoIndex !== null) {
           dbEquipos[editingEquipoIndex] = equipoData;
@@ -3370,7 +3496,7 @@
         tbody.innerHTML = '';
 
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay equipos registrados.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No hay equipos registrados.</td></tr>';
           return;
         }
 
@@ -3380,12 +3506,13 @@
           
           tbody.innerHTML += `
             <tr>
-              <td data-label="Edificio">${eq.edificio}</td>
-              <td data-label="Rack">${eq.rack}</td>
-              <td data-label="Equipo">${eq.nombre}</td>
-              <td data-label="CI">${eq.ci}</td>
-              <td data-label="Nº U">${eq.u}</td>
-              <td data-label="S/N">${eq.sn}</td>
+              <td data-label="Edificio">${eq.edificio || ''}</td>
+              <td data-label="Rack">${eq.rack || ''}</td>
+              <td data-label="Equipo">${eq.nombre || ''}</td>
+              <td data-label="CI">${eq.ci || ''}</td>
+              <td data-label="Nº U">${eq.u || ''}</td>
+              <td data-label="S/N">${eq.sn || ''}</td>
+              <td data-label="IP">${eq.ip || ''}</td>
               <td data-label="Acciones">
                 <div style="display: flex; gap: 5px;">
                   <button class="action-btn" style="background-color: #3498db; padding: 5px 10px;" onclick="openCreateEquipoModal(${originalIdx})">✏️</button>
@@ -3405,11 +3532,12 @@
         }
 
         const filtered = dbEquipos.filter(eq => 
-          eq.nombre.toLowerCase().includes(q) ||
-          eq.sn.toLowerCase().includes(q) ||
-          eq.rack.toLowerCase().includes(q) ||
-          eq.ci.toLowerCase().includes(q) ||
-          eq.edificio.toLowerCase().includes(q)
+          (eq.nombre || '').toLowerCase().includes(q) ||
+          (eq.sn || '').toLowerCase().includes(q) ||
+          (eq.rack || '').toLowerCase().includes(q) ||
+          (eq.ci || '').toLowerCase().includes(q) ||
+          (eq.edificio || '').toLowerCase().includes(q) ||
+          (eq.ip || '').toLowerCase().includes(q)
         );
 
         renderEquiposTable(filtered);
@@ -3517,17 +3645,19 @@
                 <th style="border: 1px solid #ccc; padding: 8px;">CI</th>
                 <th style="border: 1px solid #ccc; padding: 8px;">Nº U</th>
                 <th style="border: 1px solid #ccc; padding: 8px;">S/N</th>
+                <th style="border: 1px solid #ccc; padding: 8px;">IP</th>
               </tr>
             </thead>
             <tbody>
               ${dbEquipos.map(eq => `
                 <tr>
-                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.edificio}</td>
-                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.rack}</td>
-                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.nombre}</td>
-                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.ci}</td>
-                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.u}</td>
-                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.sn}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.edificio || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.rack || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.nombre || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.ci || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.u || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.sn || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 8px;">${eq.ip || ''}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -4210,9 +4340,11 @@
                 <td data-label="Comentarios">${wifi.comentarios || ""}</td>
                 <td data-label="Acciones">
                   <div style="display: inline-flex; gap: 5px; align-items: center; flex-wrap: wrap;">
-                    <button onclick="verEdificio(${eIndex}); abrirWifisEdificio();" class="action-btn" style="padding: 5px 10px; font-size: 1rem;" title="Ver en Edificio">👁️</button>
                     <button onclick="verFichaWifi(${eIndex}, ${wIndex})" class="action-btn" style="padding: 5px 10px; font-size: 1rem; background-color: #8e44ad;" title="Ver Ficha Wifi">📶</button>
                     <button onclick="abrirGaleriaWifi(${eIndex}, ${wIndex})" class="action-btn" style="padding: 5px 10px; font-size: 1rem; background-color: #3498db;" title="Fotos">📸</button>
+                    <button onclick="currentVerEdificioIndex = ${eIndex}; document.getElementById('wifi-edificio').value = ${eIndex}; abrirModalWifi(${wIndex});" class="action-btn" style="padding: 5px 10px; font-size: 1rem;" title="Editar Wifi">✏️</button>
+                    <button onclick="eliminarWifi(${wIndex}, ${eIndex})" class="action-btn danger" style="padding: 5px 10px; font-size: 1rem;" title="Eliminar Wifi">🗑️</button>
+                    <button onclick="previousViewBeforeWifis = 'view-wifis-global'; verEdificio(${eIndex}); abrirWifisEdificio();" class="action-btn" style="padding: 5px 10px; font-size: 1rem;" title="Ver en Edificio">👁️</button>
                   </div>
                 </td>
               `;
@@ -4425,7 +4557,7 @@
                 <td data-label="Acción">
                     <div style="display: inline-flex; gap: 5px; align-items: center; flex-wrap: wrap;">
                         <button onclick="verEdificio(${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem;" title="Ver">👁️</button>
-                        <button onclick="verEdificio(${i}); abrirWifisEdificio();" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #8e44ad;" title="Wifis">📶</button>
+                        <button onclick="previousViewBeforeWifis = 'view-edificios'; verEdificio(${i}); abrirWifisEdificio();" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #8e44ad;" title="Wifis">📶</button>
                         <button onclick="openSendModalEdificio(${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #f39c12;" title="Enviar">✉️</button>
                         <button onclick="exportarEdificioIndividual(${i})" class="action-btn" style="padding: 10px 15px; font-size: 1.3rem; background-color: #2b579a;" title="Exportar Solo Este Edificio">📤</button>
                         <button onclick="editEdificio(${i})" class="action-btn secondary" style="padding: 10px 15px; font-size: 1.3rem;" title="Editar">✏️</button>
@@ -4437,6 +4569,7 @@
       }
 
       let currentVerEdificioIndex = null;
+      let previousViewBeforeWifis = "view-edificio-ver";
 
       function verEdificio(i) {
         currentVerEdificioIndex = i;
@@ -4671,7 +4804,13 @@
       }
 
       function volverDeWifis() {
-        showView("view-edificio-ver");
+        if (previousViewBeforeWifis === "view-wifis-global") {
+          showView("view-wifis-global");
+        } else if (previousViewBeforeWifis === "view-edificios") {
+          showView("view-edificios");
+        } else {
+          showView("view-edificio-ver");
+        }
       }
 
       function renderWifis() {
@@ -5310,14 +5449,19 @@
         volverDeWifis();
       }
 
-      function eliminarWifi(index) {
+      function eliminarWifi(index, eIndex = null) {
+        const edificioIndex = eIndex !== null ? eIndex : currentVerEdificioIndex;
         showCustomModal({
           title: "Eliminar Wifi",
           message: "¿Estás seguro de que quieres eliminar este registro de Wifi?",
           onConfirm: () => {
-            dbEdificios[currentVerEdificioIndex].wifis.splice(index, 1);
+            dbEdificios[edificioIndex].wifis.splice(index, 1);
             saveToDB("wikiTegralEdificios", dbEdificios);
-            renderWifis();
+            if (document.getElementById("view-wifis").classList.contains("active")) {
+              renderWifis();
+            } else if (document.getElementById("view-wifis-global").classList.contains("active")) {
+              renderWifisGlobal();
+            }
           }
         });
       }
@@ -6104,7 +6248,7 @@
     </script>
 
     <!-- Modal Galería de Fotos Wifi -->
-    <div id="modal-wifi-galeria" class="modal hidden">
+    <div id="modal-wifi-galeria" class="modal-overlay hidden" style="z-index: 6000;">
       <div class="modal-content" style="max-width: 90%; width: 800px;">
         <div class="modal-header">
           <h2 id="wifi-galeria-title">Galería de Fotos</h2>
@@ -6119,8 +6263,54 @@
       </div>
     </div>
 
+    <!-- Modal Scanner en Vivo -->
+    <!-- Modal Asignar OCR -->
+    <div id="modal-ocr-asignar" class="modal-overlay hidden" style="z-index: 7000; background: rgba(0,0,0,0.9);">
+      <div class="modal-content" style="max-width: 95%; width: 500px; background: #fff; padding: 15px; border-radius: 8px;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #333;">Asignar Datos Escaneados</h3>
+          <button onclick="cerrarModalOcrAsignar()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #333;">&times;</button>
+        </div>
+        
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 15px;">
+          Haz clic en un campo para seleccionarlo, luego haz clic en uno de los textos detectados abajo para rellenarlo.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+          <div class="form-group">
+            <label>Nombre del Equipo</label>
+            <input type="text" id="ocr-nombre" class="form-control ocr-input" onfocus="setOcrActiveInput('ocr-nombre')">
+          </div>
+          <div class="form-group">
+            <label>CI</label>
+            <input type="text" id="ocr-ci" class="form-control ocr-input" onfocus="setOcrActiveInput('ocr-ci')">
+          </div>
+          <div class="form-group">
+            <label>S/N (Serial Number)</label>
+            <input type="text" id="ocr-sn" class="form-control ocr-input" onfocus="setOcrActiveInput('ocr-sn')">
+          </div>
+          <div class="form-group">
+            <label>IP</label>
+            <input type="text" id="ocr-ip" class="form-control ocr-input" onfocus="setOcrActiveInput('ocr-ip')">
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #eee; padding-top: 15px;">
+          <h4 style="margin-top: 0; margin-bottom: 10px; color: #333;">Textos detectados:</h4>
+          <div id="ocr-chips-container" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto;">
+            <!-- Chips go here -->
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+          <button class="action-btn" style="background-color: #95a5a6; flex: 1;" onclick="cerrarModalOcrAsignar()">Cancelar</button>
+          <button class="action-btn" style="background-color: #2ecc71; flex: 1;" onclick="aplicarDatosOcr()">Aplicar Datos</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Foto Expandida -->
-    <div id="modal-foto-expandida" class="modal hidden" style="z-index: 2000; background: rgba(0,0,0,0.9);" onclick="cerrarFotoExpandida()">
+    <div id="modal-foto-expandida" class="modal-overlay hidden" style="z-index: 6500; background: rgba(0,0,0,0.9);" onclick="cerrarFotoExpandida()">
       <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
         <img id="foto-expandida-img" src="" style="max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 4px;" />
         <button class="close-btn" style="position: absolute; top: 20px; right: 20px; color: white; font-size: 40px;" onclick="cerrarFotoExpandida()">&times;</button>
